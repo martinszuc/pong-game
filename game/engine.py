@@ -20,7 +20,11 @@ class PongGame:
         # game state
         self.score_left = 0
         self.score_right = 0
-        self.game_state = 'playing'  # 'playing', 'paused', 'game_over'
+        self.game_state = 'menu'  # 'menu', 'playing', 'paused', 'game_over'
+        
+        # Trail painting system
+        self.last_ball_position = None
+        self.enable_trail = True
         
         # initialize paddles
         paddle_width = 10
@@ -55,6 +59,7 @@ class PongGame:
         
         # initialize ball
         self.reset_ball()
+        self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
         logger.info("Game initialized successfully")
     
     def reset_ball(self):
@@ -70,6 +75,8 @@ class PongGame:
             velocity_x=ball_speed * (1 if random.random() > 0.5 else -1),
             velocity_y=ball_speed * angle
         )
+        # Reset trail position
+        self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
     
     def check_collision(self, ball, paddle):
         """Check if ball collides with paddle"""
@@ -83,32 +90,51 @@ class PongGame:
     
     def update(self, delta_time):
         """Update game state (physics, collisions, scoring)"""
-        if self.game_state != 'playing':
-            return
-        
+        # Always update paddles even when paused (for responsiveness)
         # update AI if enabled (must be before paddle update)
-        if self.ai_enabled and self.ai:
+        if self.ai_enabled and self.ai and self.game_state == 'playing':
             self.ai.update(self.ball, delta_time)
         
         # update paddles (this applies the direction set by AI or keyboard)
+        # Allow paddle movement even when paused or in menu for better UX
         self.paddle_left.update(delta_time, self.field_height)
         self.paddle_right.update(delta_time, self.field_height)
+        
+        # Only update ball and game logic when playing
+        if self.game_state != 'playing':
+            return
         
         # update ball
         self.ball.update(delta_time)
         
+        # Paint trail after ball moves (connect last position to current)
+        if self.enable_trail and self.last_ball_position is not None:
+            current_pos = [self.ball.position[0], self.ball.position[1]]
+            self._trail_callback(self.last_ball_position, current_pos)
+        
         # ball-wall collisions (top/bottom)
         ball_x, ball_y = self.ball.position
+        bounced = False
         if ball_y - self.ball.radius <= 0 or ball_y + self.ball.radius >= self.field_height:
             self.ball.reflect_y()
+            bounced = True
             # keep ball in bounds
             ball_y = max(self.ball.radius, min(self.field_height - self.ball.radius, ball_y))
             self.ball.position[1] = ball_y
         
+        # Update last position after movement and collision handling
+        self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
+        
+        # Change color on bounce
+        if bounced:
+            self._color_change_callback()
+        
         # ball-paddle collisions
+        bounced = False
         if self.check_collision(self.ball, self.paddle_left):
             self.ball.position[0] = self.paddle_left.position[0] + self.paddle_left.width + self.ball.radius
             self.ball.reflect_x()
+            bounced = True
             # add slight angle based on where ball hit paddle
             hit_position = (self.ball.position[1] - self.paddle_left.get_center_y()) / (self.paddle_left.height / 2)
             self.ball.velocity[1] += hit_position * 50
@@ -116,9 +142,14 @@ class PongGame:
         if self.check_collision(self.ball, self.paddle_right):
             self.ball.position[0] = self.paddle_right.position[0] - self.ball.radius
             self.ball.reflect_x()
+            bounced = True
             # add slight angle based on where ball hit paddle
             hit_position = (self.ball.position[1] - self.paddle_right.get_center_y()) / (self.paddle_right.height / 2)
             self.ball.velocity[1] += hit_position * 50
+        
+        # Change color on paddle bounce
+        if bounced:
+            self._color_change_callback()
         
         # scoring (ball out of bounds)
         if ball_x < 0:
@@ -142,10 +173,27 @@ class PongGame:
         elif self.game_state == 'paused':
             self.game_state = 'playing'
     
+    def start_game(self):
+        """Start the game from menu"""
+        if self.game_state == 'menu':
+            self.game_state = 'playing'
+            self.reset()
+            logger.info("Game started")
+    
+    def to_menu(self):
+        """Return to menu"""
+        self.game_state = 'menu'
+        logger.info("Returned to menu")
+    
     def reset_game(self):
         """Reset game to initial state"""
         self.score_left = 0
         self.score_right = 0
         self.game_state = 'playing'
         self.reset_ball()
+    
+    def set_trail_callbacks(self, trail_callback, color_change_callback):
+        """Set callbacks for trail painting and color changes"""
+        self._trail_callback = trail_callback
+        self._color_change_callback = color_change_callback
 

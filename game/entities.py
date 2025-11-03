@@ -47,12 +47,16 @@ class Paddle:
     
     def update(self, delta_time, field_height):
         """Update paddle position based on direction, constrained to field"""
+        old_y = self.position[1]
         self.position[1] += self.direction * self.speed * delta_time
         
         # constrain to field boundaries
         min_y = 0
         max_y = field_height - self.height
         self.position[1] = max(min_y, min(max_y, self.position[1]))
+        
+        # If paddle hit boundary and can't move further, don't change direction
+        # (direction stays the same so it can move away from boundary when key changes)
     
     def move_up(self):
         """Set direction to move up"""

@@ -36,6 +36,12 @@ class PongApplication:
         logger.info("Creating renderer")
         self.renderer = Renderer(self.field_width, self.field_height)
         
+        # Connect trail callbacks
+        self.game.set_trail_callbacks(
+            self.renderer.paint_trail,
+            self.renderer.change_trail_color
+        )
+        
         # initialize wx application
         logger.info("Initializing wx application")
         self.app = wx.App()
@@ -76,6 +82,11 @@ class PongApplication:
             
             # cap delta time to prevent large jumps
             delta_time = min(delta_time, 0.1)
+            
+            # Debug: log paddle direction before update
+            if delta_time > 0:
+                logger.debug(f"Game update: paddle_left direction={self.game.paddle_left.direction}, "
+                           f"position={self.game.paddle_left.position[1]:.1f}")
             
             # update game
             self.game.update(delta_time)

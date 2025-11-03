@@ -16,21 +16,47 @@ class Renderer:
         self.width = width
         self.height = height
         self.background = None  # will be webcam feed later
+        
+        # Initialize canvas for trail painting
+        from .canvas import Canvas
+        self.canvas = Canvas(width, height)
     
     def set_background(self, frame):
         """Set background frame (webcam feed)"""
         if frame is not None:
             self.background = cv2.resize(frame, (self.width, self.height))
     
+    def paint_trail(self, start_pos, end_pos):
+        """Paint a trail line on the canvas"""
+        self.canvas.paint_line(start_pos, end_pos)
+    
+    def change_trail_color(self):
+        """Change trail color (called on bounce)"""
+        self.canvas.change_color()
+    
+    def clear_canvas(self):
+        """Clear the canvas"""
+        self.canvas.clear()
+    
     def render(self, game):
         """Render complete game frame"""
         try:
+            # Start with canvas (persistent trail)
+            canvas_frame = self.canvas.get_canvas()
+            
             # create base frame (black background, or webcam if available)
             if self.background is not None:
                 frame = self.background.copy()
+                # Blend canvas with background
+                frame = cv2.addWeighted(frame, 0.7, canvas_frame, 0.3, 0)
             else:
-                # Use dark gray instead of pure black so we can see if rendering works
-                frame = np.full((self.height, self.width, 3), 20, dtype=np.uint8)
+                # Use canvas as base, make it slightly brighter if empty
+                frame = canvas_frame.copy()
+                if frame.max() == 0:
+                    frame = np.full((self.height, self.width, 3), 20, dtype=np.uint8)
+                else:
+                    # Slightly brighten the canvas for visibility
+                    frame = cv2.addWeighted(frame, 1.0, np.zeros_like(frame), 0, 10)
             
             # create overlay for game elements
             overlay = frame.copy()
