@@ -1,6 +1,4 @@
-"""
-Game entities: Ball and Paddle classes
-"""
+"""Game entities: Ball and Paddle classes"""
 
 
 class Ball:
@@ -10,10 +8,10 @@ class Ball:
         self.position = [float(x), float(y)]
         self.radius = radius
         self.velocity = [float(velocity_x), float(velocity_y)]
-        self.base_speed = (velocity_x**2 + velocity_y**2)**0.5  # Store initial speed
+        self.base_speed = (velocity_x**2 + velocity_y**2)**0.5
         self.speed = self.base_speed
-        self.speed_increase_factor = speed_increase_factor  # Speed multiplier per paddle hit (default 5% increase)
-        self.max_speed = self.base_speed * max_speed_multiplier  # Maximum speed cap
+        self.speed_increase_factor = speed_increase_factor
+        self.max_speed = self.base_speed * max_speed_multiplier
     
     def update(self, delta_time):
         """Update position based on velocity"""
@@ -21,11 +19,11 @@ class Ball:
         self.position[1] += self.velocity[1] * delta_time
     
     def reflect_x(self):
-        """Reverse horizontal velocity (ball hit left/right wall)"""
+        """Reverse horizontal velocity"""
         self.velocity[0] = -self.velocity[0]
     
     def reflect_y(self):
-        """Reverse vertical velocity (ball hit top/bottom wall)"""
+        """Reverse vertical velocity"""
         self.velocity[1] = -self.velocity[1]
 
     def increase_speed(self):
@@ -54,20 +52,14 @@ class Paddle:
         self.width = width
         self.height = height
         self.speed = speed
-        self.direction = 0  # -1: up, 0: stop, 1: down
+        self.direction = 0
     
     def update(self, delta_time, field_height):
         """Update paddle position based on direction, constrained to field"""
-        old_y = self.position[1]
         self.position[1] += self.direction * self.speed * delta_time
-        
-        # constrain to field boundaries
         min_y = 0
         max_y = field_height - self.height
         self.position[1] = max(min_y, min(max_y, self.position[1]))
-        
-        # If paddle hit boundary and can't move further, don't change direction
-        # (direction stays the same so it can move away from boundary when key changes)
     
     def move_up(self):
         """Set direction to move up"""
@@ -93,4 +85,3 @@ class Paddle:
     def get_center_y(self):
         """Return y-coordinate of paddle center"""
         return self.position[1] + self.height / 2
-

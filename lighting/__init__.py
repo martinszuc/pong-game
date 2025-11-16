@@ -1,2 +1,8 @@
-# Lighting module (placeholder for Phase 2)
+"""
+Lighting module: ArtNET/DMX control
+"""
+
+from .artnet_controller import ArtNetController
+
+__all__ = ['ArtNetController']
 

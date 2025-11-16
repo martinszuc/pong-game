@@ -1,19 +1,22 @@
-"""
-Main entry point for Audio-Controlled Pong Game
-"""
+"""Main entry point for Audio-Controlled Pong Game"""
 
 import wx
 import cv2
 import time
 import sys
 import logging
+import platform
 
 from game.engine import PongGame
 from visuals.renderer import Renderer
-from ui.interface import PongFrame
+from ui.frame import PongFrame
 from utils.logger import setup_logging, get_logger
+from pyo import Server
 
-# Setup logging
+IS_MACOS = platform.system() == 'Darwin'
+IS_LINUX = platform.system() == 'Linux'
+IS_WINDOWS = platform.system() == 'Windows'
+
 setup_logging()
 logger = get_logger(__name__)
 
@@ -24,110 +27,154 @@ class PongApplication:
     def __init__(self):
         logger.info("Initializing Pong Application")
         
-        # game dimensions
         self.field_width = 800
         self.field_height = 600
         
-        # initialize game
-        logger.info("Creating game engine")
-        self.game = PongGame(self.field_width, self.field_height)
+        logger.info(f"Platform: {platform.system()} ({platform.platform()})")
         
-        # initialize renderer
-        logger.info("Creating renderer")
+        logger.info("Initializing wx application first...")
+        try:
+            self.app = wx.App()
+            logger.info("wx.App created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create wx.App: {e}", exc_info=True)
+            raise
+        
+        try:
+            self.audio_server = Server().boot()
+            self.audio_server.start()
+            logger.info("Audio server started")
+        except Exception as e:
+            logger.error(f"Failed to start audio server: {e}", exc_info=True)
+            if IS_MACOS:
+                logger.error("On macOS, you may need to run: ./fix_flac.sh")
+            self.audio_server = None
+        
+        from audio.input_processor import AudioInputProcessor
+        from utils.settings import SettingsManager
+        
+        self.settings = SettingsManager()
+        
+        audio_sensitivity = self.settings.get_audio_sensitivity()
+        
+        self.audio_input = AudioInputProcessor(server=self.audio_server, noise_threshold=audio_sensitivity)
+        
+        if self.audio_server is not None:
+            self.audio_input.start(self.audio_server)
+        
+        try:
+            from lighting.artnet_controller import ArtNetController
+            self.lighting = ArtNetController(target_ip='127.0.0.1', universe=0)
+            self.lighting.connect()
+        except Exception as e:
+            logger.warning(f"Failed to initialize lighting: {e}")
+            self.lighting = None
+        
+        ai_enabled = self.settings.get_ai_enabled()
+        self.game = PongGame(self.field_width, self.field_height, ai_enabled=ai_enabled)
         self.renderer = Renderer(self.field_width, self.field_height)
         
-        # Connect trail callbacks
         self.game.set_trail_callbacks(
             self.renderer.paint_trail,
             self.renderer.change_trail_color
         )
         
-        # initialize wx application
-        logger.info("Initializing wx application")
-        self.app = wx.App()
+        self.game.set_visual_callbacks(
+            goal_flash=lambda player_left: self.renderer.trigger_goal_flash(player_left),
+            paddle_hit=lambda x, y: self.renderer.trigger_collision_particles(x, y),
+            wall_bounce=lambda x, y: self.renderer.trigger_collision_particles(x, y)
+        )
         
-        logger.info("Creating main window")
-        self.frame = PongFrame(self.game, self.renderer, on_close_callback=self.on_close)
+        if self.lighting:
+            self.game.set_lighting_callbacks(
+                goal_flash=lambda player_left: self.lighting.goal_flash(player_left),
+                collision_flash=lambda: self.lighting.collision_flash()
+            )
         
-        # game loop control
+        logger.info("Creating main window...")
+        try:
+            self.frame = PongFrame(
+                self.game, 
+                self.renderer, 
+                on_close_callback=self.on_close,
+                lighting=self.lighting,
+                audio_input=self.audio_input,
+                settings=self.settings
+            )
+            logger.info("Main window created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create main window: {e}", exc_info=True)
+            raise
+        
         self.running = True
         self.last_time = time.time()
         
-        # timer for game updates
-        logger.info("Setting up game timer")
-        timer_id = wx.NewId()
-        self.timer = wx.Timer(self.frame, timer_id)
-        self.frame.Bind(wx.EVT_TIMER, self.on_timer, id=timer_id)
-        self.timer.Start(16)  # ~60 FPS
+        self.timer = wx.Timer(self.frame)
+        self.frame.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
+        self.timer.Start(16)
         
-        logger.info(f"Timer started with ID {timer_id}, interval 16ms")
         logger.info("Application initialized successfully")
     
     def on_close(self):
         """Handle application close"""
         self.running = False
         self.timer.Stop()
+        
+        if self.audio_input:
+            self.audio_input.stop()
+        if self.lighting:
+            try:
+                self.lighting.disconnect()
+            except Exception as e:
+                logger.error(f"Error disconnecting lighting: {e}")
+        if self.audio_server:
+            try:
+                self.audio_server.stop()
+            except:
+                pass
     
     def on_timer(self, event):
         """Timer callback for game loop"""
         if not self.running:
-            logger.debug("Timer fired but running=False")
             return
         
         try:
-            # calculate delta time
             current_time = time.time()
             delta_time = current_time - self.last_time
             self.last_time = current_time
-            
-            # cap delta time to prevent large jumps
             delta_time = min(delta_time, 0.1)
             
-            # Debug: log paddle direction before update
-            if delta_time > 0:
-                logger.debug(f"Game update: paddle_left direction={self.game.paddle_left.direction}, "
-                           f"position={self.game.paddle_left.position[1]:.1f}")
+            if self.game.game_state == 'playing' and self.audio_input:
+                paddle_dir = self.audio_input.get_paddle_direction()
+                if paddle_dir == -1:
+                    self.game.paddle_left.move_up()
+                elif paddle_dir == 1:
+                    self.game.paddle_left.move_down()
             
-            # update game
+            self.renderer.update_effects(delta_time)
             self.game.update(delta_time)
-            
-            # render frame
             frame = self.renderer.render(self.game)
             
             if frame is None or frame.size == 0:
                 logger.error("Renderer returned invalid frame")
                 return
             
-            # update display directly (wx.Timer already runs in main thread)
             self.frame.update_display(frame)
             
         except Exception as e:
             logger.error(f"Error in game loop: {e}", exc_info=True)
-            import traceback
-            logger.error(traceback.format_exc())
     
     def run(self):
         """Start the application main loop"""
-        logger.info("Starting main loop")
-        
-        # Initial render to show something immediately
         try:
-            logger.info("Rendering initial frame...")
             frame = self.renderer.render(self.game)
-            logger.info(f"Initial frame shape: {frame.shape if frame is not None else 'None'}")
             if frame is not None:
                 self.frame.update_display(frame)
-                logger.info("Initial frame displayed")
                 self.frame.Refresh()
         except Exception as e:
             logger.error(f"Error rendering initial frame: {e}", exc_info=True)
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        logger.info(f"Timer running: {self.timer.IsRunning()}")
         
         self.app.MainLoop()
-        logger.info("Main loop ended")
 
 
 def main():
@@ -153,4 +200,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
