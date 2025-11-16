@@ -5,12 +5,15 @@ Game entities: Ball and Paddle classes
 
 class Ball:
     """Represents the pong ball with position, velocity, and collision detection"""
-    
-    def __init__(self, x, y, radius, velocity_x, velocity_y):
+
+    def __init__(self, x, y, radius, velocity_x, velocity_y, speed_increase_factor=1.05, max_speed_multiplier=2.5):
         self.position = [float(x), float(y)]
         self.radius = radius
         self.velocity = [float(velocity_x), float(velocity_y)]
-        self.speed = (velocity_x**2 + velocity_y**2)**0.5
+        self.base_speed = (velocity_x**2 + velocity_y**2)**0.5  # Store initial speed
+        self.speed = self.base_speed
+        self.speed_increase_factor = speed_increase_factor  # Speed multiplier per paddle hit (default 5% increase)
+        self.max_speed = self.base_speed * max_speed_multiplier  # Maximum speed cap
     
     def update(self, delta_time):
         """Update position based on velocity"""
@@ -24,7 +27,15 @@ class Ball:
     def reflect_y(self):
         """Reverse vertical velocity (ball hit top/bottom wall)"""
         self.velocity[1] = -self.velocity[1]
-    
+
+    def increase_speed(self):
+        """Increase ball speed by the speed increase factor, up to max speed"""
+        self.speed = min(self.speed * self.speed_increase_factor, self.max_speed)
+
+    def reset_speed(self):
+        """Reset ball speed to base speed"""
+        self.speed = self.base_speed
+
     def get_rect(self):
         """Return bounding box for collision detection"""
         return (
