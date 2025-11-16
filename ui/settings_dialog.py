@@ -1,16 +1,22 @@
-"""Settings dialog for audio sensitivity"""
-
 import wx
 import logging
 
 logger = logging.getLogger(__name__)
 
+DIALOG_WIDTH = 450
+DIALOG_HEIGHT = 300
+SLIDER_WIDTH = 380
+SLIDER_HEIGHT = 60
+SLIDER_MIN = 0
+SLIDER_MAX = 100
+MIN_THRESHOLD = 0.001
+MAX_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.02
+
 
 class SettingsDialog(wx.Dialog):
-    """Settings dialog for audio sensitivity"""
-    
     def __init__(self, parent, audio_input=None, settings=None):
-        super().__init__(parent, title="Settings", size=(450, 300))
+        super().__init__(parent, title="Settings", size=(DIALOG_WIDTH, DIALOG_HEIGHT))
         
         self.audio_input = audio_input
         self.settings = settings
@@ -23,19 +29,17 @@ class SettingsDialog(wx.Dialog):
         sensitivity_label.SetForegroundColour(wx.Colour(200, 200, 200))
         sizer.Add(sensitivity_label, 0, wx.ALIGN_CENTER | wx.TOP, 40)
         
-        current_threshold = 0.02
+        current_threshold = DEFAULT_THRESHOLD
         if self.audio_input:
             current_threshold = self.audio_input.noise_threshold
         elif self.settings:
             current_threshold = self.settings.get_audio_sensitivity()
         
-        min_threshold = 0.001
-        max_threshold = 0.5
-        slider_value = int(((current_threshold - min_threshold) / (max_threshold - min_threshold)) * 100)
-        slider_value = max(0, min(100, slider_value))
+        slider_value = int(((current_threshold - MIN_THRESHOLD) / (MAX_THRESHOLD - MIN_THRESHOLD)) * 100)
+        slider_value = max(SLIDER_MIN, min(SLIDER_MAX, slider_value))
         
-        self.sensitivity_slider = wx.Slider(panel, value=slider_value, minValue=0, maxValue=100,
-                                            size=(380, 60),
+        self.sensitivity_slider = wx.Slider(panel, value=slider_value, minValue=SLIDER_MIN, maxValue=SLIDER_MAX,
+                                            size=(SLIDER_WIDTH, SLIDER_HEIGHT),
                                             style=wx.SL_HORIZONTAL | wx.SL_LABELS)
         self.sensitivity_slider.Bind(wx.EVT_SLIDER, self.on_sensitivity_change)
         sizer.Add(self.sensitivity_slider, 0, wx.ALIGN_CENTER | wx.TOP | wx.LEFT | wx.RIGHT, 5)
@@ -56,11 +60,8 @@ class SettingsDialog(wx.Dialog):
         self.Centre()
     
     def on_sensitivity_change(self, event):
-        """Handle sensitivity slider change"""
         slider_value = self.sensitivity_slider.GetValue()
-        min_threshold = 0.001
-        max_threshold = 0.5
-        threshold = min_threshold + (slider_value / 100.0) * (max_threshold - min_threshold)
+        threshold = MIN_THRESHOLD + (slider_value / 100.0) * (MAX_THRESHOLD - MIN_THRESHOLD)
         
         if self.audio_input:
             self.audio_input.noise_threshold = threshold
@@ -71,12 +72,10 @@ class SettingsDialog(wx.Dialog):
         logger.info(f"Audio sensitivity changed to threshold={threshold:.4f}")
     
     def on_ok(self, event):
-        """Confirm and apply settings, then close dialog"""
         logger.info("Settings confirmed and applied")
         self.EndModal(wx.ID_OK)
     
     def on_cancel(self, event):
-        """Cancel changes and close dialog"""
         logger.info("Settings dialog cancelled")
         self.EndModal(wx.ID_CANCEL)
 

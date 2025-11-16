@@ -1,26 +1,31 @@
-"""ArtNET/DMX lighting control for synchronized light effects"""
-
 import socket
 import struct
 import logging
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TARGET_IP = '127.0.0.1'
+DEFAULT_UNIVERSE = 0
+DEFAULT_PORT = 6454
+DMX_CHANNELS = 512
+DMX_MAX_VALUE = 255
+BRIGHTNESS_MAX = 100
+ARTNET_OPCODE = 0x5000
+ARTNET_PROTOCOL_VERSION = 14
+RGB_CHANNELS = 3
+
 
 class ArtNetController:
-    """Controls DMX lighting via ArtNET protocol"""
-    
-    def __init__(self, target_ip='127.0.0.1', universe=0, port=6454):
+    def __init__(self, target_ip=DEFAULT_TARGET_IP, universe=DEFAULT_UNIVERSE, port=DEFAULT_PORT):
         self.target_ip = target_ip
         self.universe = universe
         self.port = port
         self.sock = None
         self.is_connected = False
-        self.channel_values = [0] * 512
+        self.channel_values = [0] * DMX_CHANNELS
         logger.info(f"ArtNetController initialized: {target_ip}:{port}, universe={universe}")
     
     def connect(self):
-        """Initialize socket connection"""
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.is_connected = True
@@ -32,20 +37,19 @@ class ArtNetController:
             return False
     
     def send_dmx(self, channel_values):
-        """Send DMX data via ArtNET"""
         if not self.is_connected or self.sock is None:
             logger.warning("ArtNET not connected, cannot send DMX")
             return False
         
         try:
-            data = channel_values[:512]
-            while len(data) < 512:
+            data = channel_values[:DMX_CHANNELS]
+            while len(data) < DMX_CHANNELS:
                 data.append(0)
             
             packet = bytearray()
             packet.extend(b'Art-Net\x00')
-            packet.extend(struct.pack('<H', 0x5000))
-            packet.extend(struct.pack('>H', 14))
+            packet.extend(struct.pack('<H', ARTNET_OPCODE))
+            packet.extend(struct.pack('>H', ARTNET_PROTOCOL_VERSION))
             packet.append(0)
             packet.append(0)
             packet.extend(struct.pack('<H', self.universe))
@@ -63,41 +67,34 @@ class ArtNetController:
             return False
     
     def set_brightness(self, brightness):
-        """Set brightness for all channels (0-100%)"""
-        dmx_value = int((brightness / 100.0) * 255)
-        dmx_value = max(0, min(255, dmx_value))
-        channels = [0] * 512
-        channels[0] = dmx_value
-        channels[1] = dmx_value
-        channels[2] = dmx_value
+        dmx_value = int((brightness / BRIGHTNESS_MAX) * DMX_MAX_VALUE)
+        dmx_value = max(0, min(DMX_MAX_VALUE, dmx_value))
+        channels = [0] * DMX_CHANNELS
+        for i in range(RGB_CHANNELS):
+            channels[i] = dmx_value
         return self.send_dmx(channels)
     
     def set_rgb(self, r, g, b):
-        """Set RGB values for channels 1-3"""
-        channels = [0] * 512
-        channels[0] = max(0, min(255, int(r)))
-        channels[1] = max(0, min(255, int(g)))
-        channels[2] = max(0, min(255, int(b)))
+        channels = [0] * DMX_CHANNELS
+        channels[0] = max(0, min(DMX_MAX_VALUE, int(r)))
+        channels[1] = max(0, min(DMX_MAX_VALUE, int(g)))
+        channels[2] = max(0, min(DMX_MAX_VALUE, int(b)))
         return self.send_dmx(channels)
     
     def flash_color(self, r, g, b, duration=0.2):
-        """Flash a color briefly"""
         self.set_rgb(r, g, b)
         logger.debug(f"Flash color: RGB({r}, {g}, {b})")
     
     def goal_flash(self, player_left=True):
-        """Flash effect for goal scored"""
         if player_left:
             self.flash_color(0, 255, 0)
         else:
             self.flash_color(255, 0, 0)
     
     def collision_flash(self):
-        """Brief intensity spike for ball collision"""
         self.flash_color(255, 255, 255)
     
     def disconnect(self):
-        """Close socket connection"""
         if self.sock is not None:
             try:
                 self.sock.close()

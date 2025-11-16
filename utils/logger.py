@@ -1,25 +1,22 @@
-"""
-Logging configuration for the game
-"""
-
 import logging
 import sys
 
+LOG_FILE = 'pong_game.log'
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
 
 def setup_logging(level=logging.DEBUG):
-    """Setup logging configuration"""
     logging.basicConfig(
         level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format=LOG_FORMAT,
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler('pong_game.log', mode='w')
+            logging.FileHandler(LOG_FILE, mode='w')
         ]
     )
     return logging.getLogger(__name__)
 
 
 def get_logger(name):
-    """Get a logger instance for a module"""
     return logging.getLogger(name)
 

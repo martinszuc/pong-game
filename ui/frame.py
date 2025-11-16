@@ -1,28 +1,33 @@
-"""Main application window with game display and menu/controls"""
-
 import wx
 import cv2
 import logging
+import platform
 
 from .settings_dialog import SettingsDialog
 
 logger = logging.getLogger(__name__)
 
+GAME_WIDTH = 800
+GAME_HEIGHT = 600
+FRAME_WIDTH = 4
+PADDING = 20
+TITLE_BAR_HEIGHT_MACOS = 40
+TITLE_BAR_HEIGHT_OTHER = 30
+KEY_TIMER_INTERVAL_MS = 50
+TOP_SCORES_COUNT = 5
+MAX_NAME_DISPLAY_LENGTH = 15
+
 
 class PongFrame(wx.Frame):
-    """Main application window with game display and menu/controls"""
-    
     def __init__(self, game, renderer, on_close_callback=None, 
                  lighting=None, audio_input=None, settings=None):
-        import platform
-        self.game_width = 800
-        self.game_height = 600
-        self.frame_width = 4
-        padding = 20
+        self.game_width = GAME_WIDTH
+        self.game_height = GAME_HEIGHT
+        self.frame_width = FRAME_WIDTH
         
-        title_bar_height = 40 if platform.system() == 'Darwin' else 30
-        window_width = self.game_width + (self.frame_width * 2) + (padding * 2)
-        window_height = self.game_height + (self.frame_width * 2) + (padding * 2) + title_bar_height
+        title_bar_height = TITLE_BAR_HEIGHT_MACOS if platform.system() == 'Darwin' else TITLE_BAR_HEIGHT_OTHER
+        window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2)
+        window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height
         
         super().__init__(None, title="Audio-Controlled Pong Game", 
                         size=(window_width, window_height))
@@ -34,7 +39,7 @@ class PongFrame(wx.Frame):
         self.audio_input = audio_input
         self.settings = settings
         self.game_mode = 'voice_ai'
-        self.current_game_score = 0  # Store score when game ends
+        self.current_game_score = 0
         
         from utils.high_scores import HighScoreManager
         self.high_score_manager = HighScoreManager()
@@ -53,7 +58,7 @@ class PongFrame(wx.Frame):
         self.card_sizer.Add(self.menu_panel, 1, wx.EXPAND)
         self.card_sizer.Add(self.game_panel, 1, wx.EXPAND)
         
-        main_sizer.Add(self.card_sizer, 1, wx.EXPAND | wx.ALL, padding)
+        main_sizer.Add(self.card_sizer, 1, wx.EXPAND | wx.ALL, PADDING)
         panel.SetSizer(main_sizer)
         
         self.game_over_panel.Reparent(self.game_panel)
@@ -68,13 +73,12 @@ class PongFrame(wx.Frame):
         
         self.key_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.check_movement_keys, self.key_timer)
-        self.key_timer.Start(50)
+        self.key_timer.Start(KEY_TIMER_INTERVAL_MS)
         
         self.Show()
         self.SetFocus()
     
     def create_menu_panel(self, parent):
-        """Create the menu panel"""
         menu_panel = wx.Panel(parent)
         menu_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
         
@@ -111,18 +115,14 @@ class PongFrame(wx.Frame):
         return menu_panel
     
     def update_high_scores_display(self):
-        """Update high scores display on menu"""
-        # Reload scores to ensure we have the latest data
         self.high_score_manager.load_scores()
-        top_scores = self.high_score_manager.get_top_scores(5)
+        top_scores = self.high_score_manager.get_top_scores(TOP_SCORES_COUNT)
         if top_scores:
-            # Format as table with rank, name, and score columns
             scores_lines = []
             for i, s in enumerate(top_scores):
                 rank = f"{i+1}."
-                name = s['name'][:15]  # Limit name length
+                name = s['name'][:MAX_NAME_DISPLAY_LENGTH]
                 score = s['score']
-                # Format with fixed-width columns for alignment (using monospace font)
                 scores_lines.append(f"{rank:4} {name:15} {score:6}")
             scores_text = "\n".join(scores_lines)
         else:
@@ -131,15 +131,11 @@ class PongFrame(wx.Frame):
         logger.info(f"Updated high scores display: {top_scores}")
     
     def create_game_over_panel(self, parent):
-        """Create full-screen game over overlay"""
         overlay_panel = wx.Panel(parent)
         overlay_panel.SetBackgroundColour(wx.Colour(20, 20, 20))
         overlay_panel.Hide()
         
-        # Use a vertical sizer with spacers to center content
         sizer = wx.BoxSizer(wx.VERTICAL)
-        
-        # Add flexible spacer at top to push content to center
         sizer.AddStretchSpacer()
         
         self.game_over_title = wx.StaticText(overlay_panel, label="GAME OVER")
@@ -148,7 +144,6 @@ class PongFrame(wx.Frame):
         self.game_over_title.SetFont(title_font)
         sizer.Add(self.game_over_title, 0, wx.ALIGN_CENTER | wx.ALL, 10)
         
-        # Name entry field - centered horizontally, directly under title
         name_container_sizer = wx.BoxSizer(wx.HORIZONTAL)
         name_container_sizer.AddStretchSpacer()
         
@@ -158,7 +153,6 @@ class PongFrame(wx.Frame):
         name_container_sizer.Add(self.game_over_name_entry, 0, wx.ALIGN_CENTER_VERTICAL)
         
         name_container_sizer.AddStretchSpacer()
-        
         sizer.Add(name_container_sizer, 0, wx.EXPAND | wx.TOP, 30)
         
         self.game_over_score = wx.StaticText(overlay_panel, label="Score: 0")
@@ -167,7 +161,6 @@ class PongFrame(wx.Frame):
         self.game_over_score.SetFont(score_font)
         sizer.Add(self.game_over_score, 0, wx.ALIGN_CENTER | wx.TOP, 20)
         
-        # Button
         button_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.game_over_ok_btn = wx.Button(overlay_panel, label="OK", size=(150, 50))
         self.game_over_ok_btn.Bind(wx.EVT_BUTTON, self.on_game_over_ok)
@@ -175,15 +168,12 @@ class PongFrame(wx.Frame):
         button_sizer.Add(self.game_over_ok_btn, 0, wx.ALL, 15)
         
         sizer.Add(button_sizer, 0, wx.ALIGN_CENTER | wx.TOP, 30)
-        
-        # Add flexible spacer at bottom to center content vertically
         sizer.AddStretchSpacer()
         
         overlay_panel.SetSizer(sizer)
         return overlay_panel
     
     def create_game_panel(self, parent):
-        """Create the game display panel with white frame"""
         game_panel = wx.Panel(parent)
         game_panel.SetBackgroundColour(wx.Colour(255, 255, 255))
         
@@ -212,14 +202,12 @@ class PongFrame(wx.Frame):
         return game_panel
     
     def show_menu_panel(self):
-        """Show menu panel"""
         self.menu_panel.Show()
         self.game_panel.Hide()
         self.game_over_panel.Hide()
         self.panel.Layout()
     
     def show_game_panel(self):
-        """Show game panel"""
         self.menu_panel.Hide()
         self.game_panel.Show()
         self.game_over_panel.Hide()
@@ -228,12 +216,9 @@ class PongFrame(wx.Frame):
             self.game_over_panel.SetSize(self.game_panel.GetSize())
     
     def show_game_over_panel(self):
-        """Show game over overlay"""
-        # Ensure game panel is visible first
         if not self.game_panel.IsShown():
             self.show_game_panel()
         
-        # Get the actual size of the game panel (which includes frame borders)
         game_panel_size = self.game_panel.GetSize()
         self.game_over_panel.SetSize(game_panel_size)
         self.game_over_panel.SetPosition((0, 0))
@@ -246,55 +231,44 @@ class PongFrame(wx.Frame):
         self.Update()
     
     def on_start_game(self, event):
-        """Start game"""
         if hasattr(self, '_game_over_handled'):
             delattr(self, '_game_over_handled')
         
         self.game_mode = 'voice_ai'
-        
         self.game.start_game()
         self.show_game_panel()
         self.SetFocus()
     
     def check_game_over(self):
-        """Check if game is over and handle high score"""
         if self.game.game_state == 'game_over' and not hasattr(self, '_game_over_handled'):
             self._game_over_handled = True
             score = self.game.bounce_count
-            # Store score immediately to prevent it from being reset
             self.current_game_score = score
-            # Check if score is a new highest score
             is_high_score = self.high_score_manager.is_high_score(score)
-            # Use CallAfter to ensure UI updates happen on main thread
             wx.CallAfter(self._show_game_over_overlay, score, is_high_score)
         elif self.game.game_state != 'game_over':
             if hasattr(self, '_game_over_handled'):
                 self._game_over_handled = False
     
     def _show_game_over_overlay(self, score, is_high_score):
-        """Show full-screen game over overlay"""
-        # Ensure game panel is shown
         if not self.game_panel.IsShown():
             self.show_game_panel()
         
         self.game_over_score.SetLabel(f"Score: {score}")
         
         if is_high_score:
-            # New highest score - show "NEW HIGH SCORE!" with name entry
             self.game_over_title.SetLabel("NEW HIGH SCORE!")
             self.game_over_title.SetForegroundColour(wx.Colour(255, 215, 0))
             self.game_over_name_entry.Show()
             self.game_over_name_entry.SetValue("Player")
             self.game_over_ok_btn.SetLabel("OK")
         else:
-            # Not a new highest score - just show "GAME OVER" with main menu button
             self.game_over_title.SetLabel("GAME OVER")
             self.game_over_title.SetForegroundColour(wx.Colour(255, 255, 255))
             self.game_over_name_entry.Hide()
             self.game_over_ok_btn.SetLabel("Main Menu")
         
         self.show_game_over_panel()
-        # Force layout refresh to ensure proper positioning
         self.game_over_panel.Layout()
         self.Layout()
         self.Refresh()
@@ -303,11 +277,8 @@ class PongFrame(wx.Frame):
         self.SetFocus()
     
     def on_game_over_ok(self, event):
-        """Handle OK/Main Menu button on game over overlay"""
-        # Use stored score instead of reading from game (which might be reset)
         score = self.current_game_score
         
-        # Save score if name entry is visible (meaning it's a new highest score)
         if self.game_over_name_entry.IsShown():
             name = self.game_over_name_entry.GetValue().strip()
             if not name:
@@ -315,35 +286,29 @@ class PongFrame(wx.Frame):
             logger.info(f"Saving high score: {name} - {score}")
             self.high_score_manager.add_score(name, score)
             logger.info(f"High scores after save: {self.high_score_manager.scores}")
-            # Force reload to ensure we have the latest data
             self.high_score_manager.load_scores()
             logger.info(f"High scores after reload: {self.high_score_manager.scores}")
         
         self.game_over_panel.Hide()
         self.game.to_menu()
         self.show_menu_panel()
-        # Update high scores display after showing menu
         self.update_high_scores_display()
         self.SetFocus()
     
     def on_settings(self, event):
-        """Open settings dialog"""
         dialog = SettingsDialog(self, self.audio_input, self.settings)
         dialog.ShowModal()
         dialog.Destroy()
     
     def on_key(self, event):
-        """Key handler"""
         key = event.GetUnicodeKey()
         if key == wx.WXK_NONE:
             key = event.GetKeyCode()
         
-        # Handle escape key when game over panel is visible
         if self.game_over_panel.IsShown():
             if key == wx.WXK_ESCAPE:
                 self.on_game_over_ok(event)
                 return
-            # Don't process other keys when game over panel is shown (allow text input)
             event.Skip()
             return
         
@@ -370,11 +335,9 @@ class PongFrame(wx.Frame):
         event.Skip()
     
     def check_movement_keys(self, event):
-        """Timer callback to check movement keys"""
         self.check_game_over()
     
     def on_close(self, event):
-        """Handle window close event"""
         if hasattr(self, 'key_timer'):
             self.key_timer.Stop()
         if self.on_close_callback:
@@ -382,7 +345,6 @@ class PongFrame(wx.Frame):
         self.Destroy()
     
     def update_display(self, frame):
-        """Update the display bitmap with OpenCV frame"""
         try:
             if self.game.game_state in ['playing', 'paused', 'game_over']:
                 if not self.game_panel.IsShown():

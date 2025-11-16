@@ -1,7 +1,4 @@
-"""Main entry point for Audio-Controlled Pong Game"""
-
 import wx
-import cv2
 import time
 import sys
 import logging
@@ -17,29 +14,41 @@ IS_MACOS = platform.system() == 'Darwin'
 IS_LINUX = platform.system() == 'Linux'
 IS_WINDOWS = platform.system() == 'Windows'
 
+FIELD_WIDTH = 800
+FIELD_HEIGHT = 600
+TIMER_INTERVAL_MS = 16
+MAX_DELTA_TIME = 0.1
+
 setup_logging()
 logger = get_logger(__name__)
 
 
 class PongApplication:
-    """Main application class managing game loop and integration"""
-    
     def __init__(self):
         logger.info("Initializing Pong Application")
-        
-        self.field_width = 800
-        self.field_height = 600
-        
         logger.info(f"Platform: {platform.system()} ({platform.platform()})")
         
-        logger.info("Initializing wx application first...")
+        self.field_width = FIELD_WIDTH
+        self.field_height = FIELD_HEIGHT
+        
+        self._init_wx_app()
+        self._init_audio()
+        self._init_lighting()
+        self._init_game()
+        self._init_ui()
+        self._init_timer()
+        
+        logger.info("Application initialized successfully")
+    
+    def _init_wx_app(self):
         try:
             self.app = wx.App()
             logger.info("wx.App created successfully")
         except Exception as e:
             logger.error(f"Failed to create wx.App: {e}", exc_info=True)
             raise
-        
+    
+    def _init_audio(self):
         try:
             self.audio_server = Server().boot()
             self.audio_server.start()
@@ -54,14 +63,13 @@ class PongApplication:
         from utils.settings import SettingsManager
         
         self.settings = SettingsManager()
-        
         audio_sensitivity = self.settings.get_audio_sensitivity()
-        
         self.audio_input = AudioInputProcessor(server=self.audio_server, noise_threshold=audio_sensitivity)
         
         if self.audio_server is not None:
             self.audio_input.start(self.audio_server)
-        
+    
+    def _init_lighting(self):
         try:
             from lighting.artnet_controller import ArtNetController
             self.lighting = ArtNetController(target_ip='127.0.0.1', universe=0)
@@ -69,7 +77,8 @@ class PongApplication:
         except Exception as e:
             logger.warning(f"Failed to initialize lighting: {e}")
             self.lighting = None
-        
+    
+    def _init_game(self):
         self.game = PongGame(self.field_width, self.field_height)
         self.renderer = Renderer(self.field_width, self.field_height)
         
@@ -89,8 +98,8 @@ class PongApplication:
                 goal_flash=lambda player_left: self.lighting.goal_flash(player_left),
                 collision_flash=lambda: self.lighting.collision_flash()
             )
-        
-        logger.info("Creating main window...")
+    
+    def _init_ui(self):
         try:
             self.frame = PongFrame(
                 self.game, 
@@ -104,18 +113,15 @@ class PongApplication:
         except Exception as e:
             logger.error(f"Failed to create main window: {e}", exc_info=True)
             raise
-        
+    
+    def _init_timer(self):
         self.running = True
         self.last_time = time.time()
-        
         self.timer = wx.Timer(self.frame)
         self.frame.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
-        self.timer.Start(16)
-        
-        logger.info("Application initialized successfully")
+        self.timer.Start(TIMER_INTERVAL_MS)
     
     def on_close(self):
-        """Handle application close"""
         self.running = False
         self.timer.Stop()
         
@@ -133,17 +139,14 @@ class PongApplication:
                 pass
     
     def on_timer(self, event):
-        """Timer callback for game loop"""
         if not self.running:
             return
         
         try:
             current_time = time.time()
-            delta_time = current_time - self.last_time
+            delta_time = min(current_time - self.last_time, MAX_DELTA_TIME)
             self.last_time = current_time
-            delta_time = min(delta_time, 0.1)
             
-            # Only process audio input when playing (not paused)
             if self.game.game_state == 'playing' and self.audio_input:
                 paddle_dir = self.audio_input.get_paddle_direction()
                 if paddle_dir == -1:
@@ -151,7 +154,6 @@ class PongApplication:
                 elif paddle_dir == 1:
                     self.game.paddle_left.move_down()
             elif self.game.game_state == 'paused':
-                # Stop paddle movement when paused
                 self.game.paddle_left.stop()
             
             self.renderer.update_effects(delta_time)
@@ -168,7 +170,6 @@ class PongApplication:
             logger.error(f"Error in game loop: {e}", exc_info=True)
     
     def run(self):
-        """Start the application main loop"""
         try:
             frame = self.renderer.render(self.game)
             if frame is not None:
@@ -181,7 +182,6 @@ class PongApplication:
 
 
 def main():
-    """Entry point"""
     try:
         logger.info("=" * 50)
         logger.info("Starting Audio-Controlled Pong Game")

@@ -1,5 +1,3 @@
-"""Settings management with JSON storage"""
-
 import json
 import os
 import logging
@@ -7,20 +5,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 SETTINGS_FILE = "settings.json"
+DEFAULT_AUDIO_SENSITIVITY = 0.02
 
 
 class SettingsManager:
-    """Manages application settings stored in JSON file"""
-    
     def __init__(self, settings_file=SETTINGS_FILE):
         self.settings_file = settings_file
         self.settings = {
-            'audio_sensitivity': 0.02
+            'audio_sensitivity': DEFAULT_AUDIO_SENSITIVITY
         }
         self.load_settings()
     
     def load_settings(self):
-        """Load settings from JSON file"""
         if os.path.exists(self.settings_file):
             try:
                 with open(self.settings_file, 'r') as f:
@@ -34,7 +30,6 @@ class SettingsManager:
             self.save_settings()
     
     def save_settings(self):
-        """Save settings to JSON file"""
         try:
             with open(self.settings_file, 'w') as f:
                 json.dump(self.settings, f, indent=2)
@@ -43,19 +38,15 @@ class SettingsManager:
             logger.error(f"Error saving settings: {e}")
     
     def get(self, key, default=None):
-        """Get a setting value"""
         return self.settings.get(key, default)
     
     def set(self, key, value):
-        """Set a setting value and save"""
         self.settings[key] = value
         self.save_settings()
     
     def get_audio_sensitivity(self):
-        """Get audio sensitivity threshold"""
-        return self.settings.get('audio_sensitivity', 0.02)
+        return self.settings.get('audio_sensitivity', DEFAULT_AUDIO_SENSITIVITY)
     
     def set_audio_sensitivity(self, value):
-        """Set audio sensitivity threshold"""
         self.set('audio_sensitivity', value)
 
