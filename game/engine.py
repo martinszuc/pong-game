@@ -67,7 +67,7 @@ class PongGame:
         import random
         ball_speed = 250
         angle = random.uniform(-0.5, 0.5)  # random angle between -30 and 30 degrees
-        
+
         self.ball = Ball(
             self.field_width // 2,
             self.field_height // 2,
@@ -75,6 +75,7 @@ class PongGame:
             velocity_x=ball_speed * (1 if random.random() > 0.5 else -1),
             velocity_y=ball_speed * angle
         )
+        # Speed is automatically reset to base_speed when creating new Ball instance
         # Reset trail position
         self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
     
@@ -134,19 +135,21 @@ class PongGame:
         if self.check_collision(self.ball, self.paddle_left):
             self.ball.position[0] = self.paddle_left.position[0] + self.paddle_left.width + self.ball.radius
             self.ball.reflect_x()
+            self.ball.increase_speed()  # Increase ball speed on paddle hit
             bounced = True
             # add slight angle based on where ball hit paddle
             hit_position = (self.ball.position[1] - self.paddle_left.get_center_y()) / (self.paddle_left.height / 2)
             self.ball.velocity[1] += hit_position * 50
-        
+
         if self.check_collision(self.ball, self.paddle_right):
             self.ball.position[0] = self.paddle_right.position[0] - self.ball.radius
             self.ball.reflect_x()
+            self.ball.increase_speed()  # Increase ball speed on paddle hit
             bounced = True
             # add slight angle based on where ball hit paddle
             hit_position = (self.ball.position[1] - self.paddle_right.get_center_y()) / (self.paddle_right.height / 2)
             self.ball.velocity[1] += hit_position * 50
-        
+
         # Change color on paddle bounce
         if bounced:
             self._color_change_callback()
