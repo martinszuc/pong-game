@@ -70,8 +70,7 @@ class PongApplication:
             logger.warning(f"Failed to initialize lighting: {e}")
             self.lighting = None
         
-        ai_enabled = self.settings.get_ai_enabled()
-        self.game = PongGame(self.field_width, self.field_height, ai_enabled=ai_enabled)
+        self.game = PongGame(self.field_width, self.field_height)
         self.renderer = Renderer(self.field_width, self.field_height)
         
         self.game.set_trail_callbacks(
@@ -144,12 +143,16 @@ class PongApplication:
             self.last_time = current_time
             delta_time = min(delta_time, 0.1)
             
+            # Only process audio input when playing (not paused)
             if self.game.game_state == 'playing' and self.audio_input:
                 paddle_dir = self.audio_input.get_paddle_direction()
                 if paddle_dir == -1:
                     self.game.paddle_left.move_up()
                 elif paddle_dir == 1:
                     self.game.paddle_left.move_down()
+            elif self.game.game_state == 'paused':
+                # Stop paddle movement when paused
+                self.game.paddle_left.stop()
             
             self.renderer.update_effects(delta_time)
             self.game.update(delta_time)

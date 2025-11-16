@@ -34,6 +34,7 @@ class PongFrame(wx.Frame):
         self.audio_input = audio_input
         self.settings = settings
         self.game_mode = 'voice_ai'
+        self.current_game_score = 0  # Store score when game ends
         
         from utils.high_scores import HighScoreManager
         self.high_score_manager = HighScoreManager()
@@ -101,7 +102,7 @@ class PongFrame(wx.Frame):
         
         self.high_scores_text = wx.StaticText(menu_panel, label="")
         self.high_scores_text.SetForegroundColour(wx.Colour(200, 200, 200))
-        scores_font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        scores_font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
         self.high_scores_text.SetFont(scores_font)
         sizer.Add(self.high_scores_text, 0, wx.ALIGN_CENTER | wx.TOP, 10)
         self.update_high_scores_display()
@@ -115,7 +116,15 @@ class PongFrame(wx.Frame):
         self.high_score_manager.load_scores()
         top_scores = self.high_score_manager.get_top_scores(5)
         if top_scores:
-            scores_text = "\n".join([f"{i+1}. {s['name']}: {s['score']}" for i, s in enumerate(top_scores)])
+            # Format as table with rank, name, and score columns
+            scores_lines = []
+            for i, s in enumerate(top_scores):
+                rank = f"{i+1}."
+                name = s['name'][:15]  # Limit name length
+                score = s['score']
+                # Format with fixed-width columns for alignment (using monospace font)
+                scores_lines.append(f"{rank:4} {name:15} {score:6}")
+            scores_text = "\n".join(scores_lines)
         else:
             scores_text = "No scores yet"
         self.high_scores_text.SetLabel(scores_text)
@@ -139,22 +148,9 @@ class PongFrame(wx.Frame):
         self.game_over_title.SetFont(title_font)
         sizer.Add(self.game_over_title, 0, wx.ALIGN_CENTER | wx.ALL, 10)
         
-        self.game_over_score = wx.StaticText(overlay_panel, label="Score: 0")
-        self.game_over_score.SetForegroundColour(wx.Colour(200, 200, 200))
-        score_font = wx.Font(32, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-        self.game_over_score.SetFont(score_font)
-        sizer.Add(self.game_over_score, 0, wx.ALIGN_CENTER | wx.TOP, 30)
-        
-        # Name label and entry field container - centered horizontally
+        # Name entry field - centered horizontally, directly under title
         name_container_sizer = wx.BoxSizer(wx.HORIZONTAL)
         name_container_sizer.AddStretchSpacer()
-        
-        self.game_over_name_label = wx.StaticText(overlay_panel, label="Name:")
-        self.game_over_name_label.SetForegroundColour(wx.Colour(200, 200, 200))
-        self.game_over_name_label.Hide()
-        name_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-        self.game_over_name_label.SetFont(name_font)
-        name_container_sizer.Add(self.game_over_name_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
         
         self.game_over_name_entry = wx.TextCtrl(overlay_panel, value="Player", size=(300, 40), style=wx.TE_PROCESS_ENTER)
         self.game_over_name_entry.Hide()
@@ -163,7 +159,13 @@ class PongFrame(wx.Frame):
         
         name_container_sizer.AddStretchSpacer()
         
-        sizer.Add(name_container_sizer, 0, wx.EXPAND | wx.TOP, 40)
+        sizer.Add(name_container_sizer, 0, wx.EXPAND | wx.TOP, 30)
+        
+        self.game_over_score = wx.StaticText(overlay_panel, label="Score: 0")
+        self.game_over_score.SetForegroundColour(wx.Colour(200, 200, 200))
+        score_font = wx.Font(32, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        self.game_over_score.SetFont(score_font)
+        sizer.Add(self.game_over_score, 0, wx.ALIGN_CENTER | wx.TOP, 20)
         
         # Button
         button_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -248,11 +250,7 @@ class PongFrame(wx.Frame):
         if hasattr(self, '_game_over_handled'):
             delattr(self, '_game_over_handled')
         
-        self.game.ai_enabled = True
         self.game_mode = 'voice_ai'
-        
-        if self.settings:
-            self.settings.set_ai_enabled(True)
         
         self.game.start_game()
         self.show_game_panel()
@@ -263,16 +261,17 @@ class PongFrame(wx.Frame):
         if self.game.game_state == 'game_over' and not hasattr(self, '_game_over_handled'):
             self._game_over_handled = True
             score = self.game.bounce_count
-            # Check if score is greater than the highest score (not just if it qualifies for top 10)
-            highest_score = self.high_score_manager.get_highest_score()
-            is_new_record = score > highest_score
+            # Store score immediately to prevent it from being reset
+            self.current_game_score = score
+            # Check if score is a new highest score
+            is_high_score = self.high_score_manager.is_high_score(score)
             # Use CallAfter to ensure UI updates happen on main thread
-            wx.CallAfter(self._show_game_over_overlay, score, is_new_record)
+            wx.CallAfter(self._show_game_over_overlay, score, is_high_score)
         elif self.game.game_state != 'game_over':
             if hasattr(self, '_game_over_handled'):
                 self._game_over_handled = False
     
-    def _show_game_over_overlay(self, score, is_new_record):
+    def _show_game_over_overlay(self, score, is_high_score):
         """Show full-screen game over overlay"""
         # Ensure game panel is shown
         if not self.game_panel.IsShown():
@@ -280,35 +279,36 @@ class PongFrame(wx.Frame):
         
         self.game_over_score.SetLabel(f"Score: {score}")
         
-        if is_new_record:
-            # New record - show "NEW HIGH SCORE!" with name entry
+        if is_high_score:
+            # New highest score - show "NEW HIGH SCORE!" with name entry
             self.game_over_title.SetLabel("NEW HIGH SCORE!")
             self.game_over_title.SetForegroundColour(wx.Colour(255, 215, 0))
-            self.game_over_name_label.Show()
             self.game_over_name_entry.Show()
             self.game_over_name_entry.SetValue("Player")
-            self.game_over_name_entry.SetFocus()
             self.game_over_ok_btn.SetLabel("OK")
         else:
-            # Not a new record - just show "GAME OVER" with main menu button
+            # Not a new highest score - just show "GAME OVER" with main menu button
             self.game_over_title.SetLabel("GAME OVER")
             self.game_over_title.SetForegroundColour(wx.Colour(255, 255, 255))
-            self.game_over_name_label.Hide()
             self.game_over_name_entry.Hide()
             self.game_over_ok_btn.SetLabel("Main Menu")
         
         self.show_game_over_panel()
+        # Force layout refresh to ensure proper positioning
+        self.game_over_panel.Layout()
         self.Layout()
+        self.Refresh()
+        if is_high_score:
+            self.game_over_name_entry.SetFocus()
         self.SetFocus()
     
     def on_game_over_ok(self, event):
         """Handle OK/Main Menu button on game over overlay"""
-        score = self.game.bounce_count
-        highest_score = self.high_score_manager.get_highest_score()
-        is_new_record = score > highest_score
+        # Use stored score instead of reading from game (which might be reset)
+        score = self.current_game_score
         
-        # Only save score if it's a new record and name entry is visible
-        if is_new_record and self.game_over_name_entry.IsShown():
+        # Save score if name entry is visible (meaning it's a new highest score)
+        if self.game_over_name_entry.IsShown():
             name = self.game_over_name_entry.GetValue().strip()
             if not name:
                 name = "Anonymous"
@@ -343,6 +343,9 @@ class PongFrame(wx.Frame):
             if key == wx.WXK_ESCAPE:
                 self.on_game_over_ok(event)
                 return
+            # Don't process other keys when game over panel is shown (allow text input)
+            event.Skip()
+            return
         
         if self.game.game_state == 'menu':
             if key == wx.WXK_ESCAPE:

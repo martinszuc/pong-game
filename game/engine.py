@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class PongGame:
     """Main game logic and state management"""
     
-    def __init__(self, field_width, field_height, ai_enabled=True):
+    def __init__(self, field_width, field_height):
         self.field_width = field_width
         self.field_height = field_height
         self.score_left = 0
@@ -44,12 +44,8 @@ class PongGame:
             paddle_speed
         )
         
-        self.ai_enabled = ai_enabled
-        if ai_enabled:
-            from .ai import SimpleAI
-            self.ai = SimpleAI(self.paddle_right, difficulty=0.6)
-        else:
-            self.ai = None
+        from .ai import SimpleAI
+        self.ai = SimpleAI(self.paddle_right, difficulty=0.6)
         
         self.reset_ball()
         self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
@@ -82,14 +78,17 @@ class PongGame:
     
     def update(self, delta_time):
         """Update game state"""
-        if self.ai_enabled and self.ai and self.game_state == 'playing':
+        if self.game_state != 'playing':
+            # Stop paddle movement when paused or game over
+            self.paddle_left.stop()
+            self.paddle_right.stop()
+            return
+        
+        if self.ai:
             self.ai.update(self.ball, delta_time)
         
         self.paddle_left.update(delta_time, self.field_height)
         self.paddle_right.update(delta_time, self.field_height)
-        
-        if self.game_state != 'playing':
-            return
         
         self.ball.update(delta_time)
         

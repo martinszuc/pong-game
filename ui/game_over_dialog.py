@@ -8,52 +8,66 @@ class GameOverDialog(wx.Dialog):
     
     def __init__(self, parent, score, is_high_score=False):
         title = "New High Score!" if is_high_score else "Game Over"
-        super().__init__(parent, title=title, size=(350, 200))
-        
+        super().__init__(parent, title=title, size=(500, 400))
+
         self.score = score
         self.is_high_score = is_high_score
         self.name = ""
-        
-        panel = wx.Panel(self)
-        panel.SetBackgroundColour(wx.Colour(40, 40, 40))
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        
+
+        self.SetBackgroundColour(wx.Colour(40, 40, 40))
+
+        # main vertical sizer
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # top spacer
+        main_sizer.AddSpacer(50)
+
+        # title
         if is_high_score:
-            title_text = wx.StaticText(panel, label="NEW HIGH SCORE!")
+            title_text = wx.StaticText(self, label="NEW HIGH SCORE!")
             title_text.SetForegroundColour(wx.Colour(255, 215, 0))
         else:
-            title_text = wx.StaticText(panel, label="GAME OVER")
+            title_text = wx.StaticText(self, label="GAME OVER")
             title_text.SetForegroundColour(wx.Colour(255, 255, 255))
-        
-        title_font = wx.Font(20, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+
+        title_font = wx.Font(26, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         title_text.SetFont(title_font)
-        sizer.Add(title_text, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-        
-        score_text = wx.StaticText(panel, label=f"Score: {score}")
+        main_sizer.Add(title_text, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+
+        main_sizer.AddSpacer(30)
+
+        # score
+        score_text = wx.StaticText(self, label=f"Score: {score}")
         score_text.SetForegroundColour(wx.Colour(200, 200, 200))
-        score_font = wx.Font(16, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        score_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
         score_text.SetFont(score_font)
-        sizer.Add(score_text, 0, wx.ALIGN_CENTER | wx.TOP, 15)
-        
+        main_sizer.Add(score_text, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+
+        main_sizer.AddSpacer(60)
+
+        # text entry for high score (NO LABEL)
         if is_high_score:
-            name_label = wx.StaticText(panel, label="Enter your name:")
-            name_label.SetForegroundColour(wx.Colour(200, 200, 200))
-            sizer.Add(name_label, 0, wx.ALIGN_CENTER | wx.TOP, 20)
-            
-            self.name_entry = wx.TextCtrl(panel, value="Player", size=(200, 30))
-            sizer.Add(self.name_entry, 0, wx.ALIGN_CENTER | wx.TOP, 10)
-        
-        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        ok_btn = wx.Button(panel, label="OK", size=(100, 35))
+            self.name_entry = wx.TextCtrl(self, value="Player", size=(300, 38))
+            self.name_entry.SetFont(wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+            main_sizer.Add(self.name_entry, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+
+            main_sizer.AddSpacer(60)
+        else:
+            main_sizer.AddSpacer(60)
+
+        # ok button
+        ok_btn = wx.Button(self, label="OK", size=(130, 45))
+        ok_btn.SetFont(wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
         ok_btn.Bind(wx.EVT_BUTTON, self.on_ok)
-        ok_btn.SetDefault()
-        button_sizer.Add(ok_btn, 0, wx.ALL, 10)
-        
-        sizer.Add(button_sizer, 0, wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, 10)
-        
-        panel.SetSizer(sizer)
+        main_sizer.Add(ok_btn, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
+
+        # bottom spacer
+        main_sizer.AddSpacer(50)
+
+        self.SetSizer(main_sizer)
+        self.Layout()
         self.Centre()
-    
+
     def on_ok(self, event):
         """Handle OK button"""
         if self.is_high_score:
@@ -61,8 +75,7 @@ class GameOverDialog(wx.Dialog):
             if not self.name:
                 self.name = "Anonymous"
         self.EndModal(wx.ID_OK)
-    
+
     def get_name(self):
         """Get entered name"""
         return self.name
-

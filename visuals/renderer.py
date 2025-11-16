@@ -89,7 +89,7 @@ class Renderer:
         font = cv2.FONT_HERSHEY_SIMPLEX
         scale = 2.0
         thickness = 3
-        color = (255, 255, 255)
+        color = (0, 0, 255)  # Red
         text = str(bounce_count)
         size = cv2.getTextSize(text, font, scale, thickness)[0]
         cv2.putText(frame, text,

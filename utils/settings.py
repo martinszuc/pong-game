@@ -15,9 +15,7 @@ class SettingsManager:
     def __init__(self, settings_file=SETTINGS_FILE):
         self.settings_file = settings_file
         self.settings = {
-            'audio_sensitivity': 0.02,
-            'master_volume': 0.5,
-            'ai_enabled': True
+            'audio_sensitivity': 0.02
         }
         self.load_settings()
     
@@ -60,20 +58,4 @@ class SettingsManager:
     def set_audio_sensitivity(self, value):
         """Set audio sensitivity threshold"""
         self.set('audio_sensitivity', value)
-    
-    def get_master_volume(self):
-        """Get master volume"""
-        return self.settings.get('master_volume', 0.5)
-    
-    def set_master_volume(self, value):
-        """Set master volume"""
-        self.set('master_volume', value)
-    
-    def get_ai_enabled(self):
-        """Get AI enabled state"""
-        return self.settings.get('ai_enabled', True)
-    
-    def set_ai_enabled(self, value):
-        """Set AI enabled state"""
-        self.set('ai_enabled', value)
 
