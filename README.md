@@ -30,10 +30,7 @@ python main.py
 
 ## Controls
 
-- W/S: Move left paddle (keyboard override)
 - Microphone/Noise: Left paddle control (paddle falls down, noise raises it up)
-- Arrow Keys: Move right paddle (if AI disabled)
 - SPACE: Pause/Resume
 - ESC: Return to Menu
-- R: Reset Game
 
