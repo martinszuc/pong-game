@@ -37,10 +37,10 @@ AI_DIFFICULTY = 0.6
 DIFFICULTY_PRESETS = {
     'easy': {
         'name': 'Easy',
-        'ai_difficulty': 0.4,
+        'ai_difficulty': 0.1,
         'ball_speed': 200,
         'paddle_speed': 350,
-        'speed_increase': 1.03,  # slower speed increase
+        'speed_increase': 1.03,
         'max_speed_mult': 2.0
     },
     'medium': {
@@ -56,7 +56,7 @@ DIFFICULTY_PRESETS = {
         'ai_difficulty': 0.85,
         'ball_speed': 320,
         'paddle_speed': 270,
-        'speed_increase': 1.08,  # faster speed increase
+        'speed_increase': 1.08,
         'max_speed_mult': 3.0
     }
 }
