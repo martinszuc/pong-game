@@ -13,11 +13,13 @@ from datetime import datetime
 
 # files and folders to exclude from the archive
 EXCLUDE_PATTERNS = [
-    'AI_ASSISTANCE.md',
     'pong_game.log',
-    'CODEBASE_REFERENCE.md',  # private team reference
-    'create_archive.py',  # don't include this script itself
-    'create_executable.py',  # don't include build scripts
+    'LINUX_SETUP_NOTES.md',  # technical notes, not needed for teachers
+    'create_archive.py',
+    'create_archive.py',
+    'PROJECT_OVERVIEW.md',
+    'PRESENTATION_SLIDES.md',
+    'CODEBASE_REFERENCE_FINAL.md',
     '__pycache__',
     '*.pyc',
     '.DS_Store',
