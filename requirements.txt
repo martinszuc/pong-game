@@ -1,5 +1,6 @@
-pyo>=1.0.0
+numpy>=1.19.0
 opencv-python>=4.5.0
 wxpython>=4.1.0
-numpy>=1.19.0
+sounddevice>=0.4.6
+pyo>=1.0.0; sys_platform == 'darwin'
 

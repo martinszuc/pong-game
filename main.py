@@ -16,7 +16,16 @@ from game.engine import PongGame  # the game rules and physics
 from visuals.renderer import Renderer  # draws the game on screen
 from ui.frame import PongFrame  # the main window
 from utils.logger import setup_logging, get_logger  # logging helpers
-from pyo import Server  # audio processing library
+
+# pyo is optional (used on macOS, sounddevice used on Linux/Windows)
+PYO_AVAILABLE = False
+Server = None
+
+try:
+    from pyo import Server  # audio processing library
+    PYO_AVAILABLE = True
+except ImportError:
+    pass  # sounddevice will be used instead
 
 # detect which operating system we're on (different OS need different settings)
 IS_MACOS = platform.system() == 'Darwin'
@@ -78,11 +87,11 @@ class PongApplication:
                 self.app.SetExitOnFrameDelete(True)
                 # tell macOS not to restore windows after crash
                 try:
-                    import objc
-                    from Foundation import NSUserDefaults
+                    import objc  # type: ignore
+                    from Foundation import NSUserDefaults  # type: ignore
                     defaults = NSUserDefaults.standardUserDefaults()
                     defaults.setBool_forKey_(False, "NSQuitAlwaysKeepsWindows")
-                except:
+                except Exception:
                     # if Foundation not available, that's ok - continue anyway
                     pass
             
@@ -98,31 +107,47 @@ class PongApplication:
         the game uses your microphone to control the left paddle:
         - loud sounds (screaming, clapping) = paddle moves up
         - quiet/silence = paddle moves down
+        
+        if audio is not available, the game defaults to keyboard mode
         """
-        try:
-            # start the audio server (this connects to your microphone)
-            self.audio_server = Server().boot()
-            self.audio_server.start()
-            logger.info("Audio server started")
-        except Exception as e:
-            logger.error(f"Failed to start audio server: {e}", exc_info=True)
-            if IS_MACOS:
-                logger.error("On macOS, you may need to run: ./fix_flac.sh")
+        from utils.settings import SettingsManager
+        self.settings = SettingsManager()
+        
+        # start audio server (pyo on macOS, sounddevice doesn't need one)
+        if PYO_AVAILABLE:
+            try:
+                # start the audio server (this connects to your microphone)
+                self.audio_server = Server().boot()
+                self.audio_server.start()
+                logger.info("Audio server started (pyo)")
+            except Exception as e:
+                logger.error(f"Failed to start audio server: {e}", exc_info=True)
+                if IS_MACOS:
+                    logger.error("On macOS, you may need to run: ./fix_flac.sh")
+                self.audio_server = None
+        else:
+            # sounddevice doesn't need a server
             self.audio_server = None
+            logger.info("Using sounddevice for audio (no server needed)")
         
         from audio.input_processor import AudioInputProcessor
-        from utils.settings import SettingsManager
         
         # load settings (like how sensitive the microphone should be)
-        self.settings = SettingsManager()
         audio_sensitivity = self.settings.get_audio_sensitivity()
         
         # create the audio processor that listens to your microphone
         self.audio_input = AudioInputProcessor(server=self.audio_server, noise_threshold=audio_sensitivity)
         
         # start listening to the microphone
-        if self.audio_server is not None:
-            self.audio_input.start(self.audio_server)
+        try:
+            if self.audio_input.start(self.audio_server):
+                logger.info("Audio input ready")
+            else:
+                logger.warning("Audio input failed to start - keyboard mode available")
+                self.audio_input = None
+        except Exception as e:
+            logger.error(f"Error starting audio input: {e}")
+            self.audio_input = None
     
     def _init_lighting(self):
         """

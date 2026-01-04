@@ -1,49 +1,25 @@
 # Audio-Controlled Pong Game
 
-A Pong game controlled by microphone input. The paddle falls down by default and noise/voice raises it up. Score is based on number of bounces (paddle hits).
+A Pong game controlled by microphone input. Paddle falls by default, noise raises it up. Score based on paddle bounces.
 
 ## Setup
 
-1. **Install Python 3.11**
-
-2. **Create virtual environment:**
-
-   **macOS/Linux:**
-   ```bash
-   python3.11 -m venv venv
-   source venv/bin/activate
-   ```
-
-   **Windows:**
-   ```cmd
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-
-## Run
-
-**macOS/Linux:**
+**Linux - Install system dependencies first:**
 ```bash
-./run.sh
+# Fedora/RHEL
+sudo dnf install gcc gcc-c++ python3.11-devel gtk3-devel portaudio-devel libsndfile-devel
+
+# Ubuntu/Debian
+sudo apt install build-essential python3.11-dev libgtk-3-dev portaudio19-dev libsndfile1-dev
 ```
 
-**Windows:**
-```cmd
-venv\Scripts\activate
-python main.py
-```
-
-**All platforms (manual):**
+**All platforms:**
 ```bash
-# Activate virtual environment first
-python main.py
+./setup.sh    # One-time setup (Linux: takes 10-20 min for wxPython)
+./run.sh      # Run the game
 ```
+
+**Linux VM users:** Need at least 4GB free disk space for wxPython compilation
 
 ## Controls
 
@@ -98,13 +74,21 @@ The code is organized into logical modules to make it easier to understand and m
    - Visual effects (screen flashes, particles)
    - Lighting effects (if DMX lights are connected)
 
+## Controls
+
+- **Audio Mode**: Loud = paddle up, quiet = paddle down
+- **Keyboard Mode**: W/S or Arrow keys
+- **SPACE**: Pause/Resume
+- **ESC**: Return to Menu
+
+## Features
+
+🎤 Microphone or keyboard control • 🎨 3 themes • 🎮 3 difficulties • 🎯 Auto-calibration • 📊 Audio viz • 💡 DMX lighting • 🏆 Leaderboard
+
 ## Troubleshooting
 
-**Audio not working:**
-- Make sure your microphone is connected and permissions are granted
-- Adjust sensitivity in the settings menu (try higher values if paddle doesn't respond)
+**Linux: "No space left on device"** - Need 4GB free for wxPython compilation. Free up space and re-run.
 
-**Game won't start:**
-- Ensure Python 3.11 is installed: `python --version`
-- Check virtual environment is activated (prompt should show `(venv)`)
-- Try reinstalling dependencies: `pip install -r requirements.txt --force-reinstall`
+**"No module named 'wx'"** - Install system dependencies first (see Setup above), then `./setup.sh`
+
+**Audio not working** - Run Settings → Calibration Wizard, or switch to Keyboard mode
