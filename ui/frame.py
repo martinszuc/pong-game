@@ -271,15 +271,15 @@ class PongFrame(wx.Frame):
         try:
             outer_sizer.AddSpacer(5)
             
-        self.audio_viz_panel = wx.Panel(game_panel)
-        self.audio_viz_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
-        
-        # Windows: enable double buffering
-        if platform.system() == 'Windows':
-            self.audio_viz_panel.SetDoubleBuffered(True)
-        
-        viz_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        viz_sizer.AddStretchSpacer()
+            self.audio_viz_panel = wx.Panel(game_panel)
+            self.audio_viz_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
+
+            # Windows: enable double buffering
+            if platform.system() == 'Windows':
+                self.audio_viz_panel.SetDoubleBuffered(True)
+
+            viz_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            viz_sizer.AddStretchSpacer()
             
             viz_label = wx.StaticText(self.audio_viz_panel, label="Mic Level:")
             viz_label.SetForegroundColour(wx.Colour(200, 200, 200))
