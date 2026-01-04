@@ -2,6 +2,8 @@
 
 A Pong game controlled by microphone input. Paddle falls by default, noise raises it up. Score based on paddle bounces.
 
+**Platforms**: macOS, Linux
+
 ## Setup
 
 **Linux - Install system dependencies first:**
@@ -13,7 +15,7 @@ sudo dnf install gcc gcc-c++ python3.11-devel gtk3-devel portaudio-devel libsndf
 sudo apt install build-essential python3.11-dev libgtk-3-dev portaudio19-dev libsndfile1-dev
 ```
 
-**All platforms:**
+**macOS & Linux:**
 ```bash
 ./setup.sh    # One-time setup (Linux: takes 10-20 min for wxPython)
 ./run.sh      # Run the game

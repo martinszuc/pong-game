@@ -28,29 +28,22 @@ class PongFrame(wx.Frame):
         self.game_height = GAME_HEIGHT
         self.frame_width = FRAME_WIDTH
         
-        # platform-specific dimensions (Linux/Windows need more space for font rendering)
+        # platform-specific dimensions (Linux needs more space for font rendering)
         if platform.system() == 'Darwin':
             title_bar_height = TITLE_BAR_HEIGHT_MACOS
             audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
             extra_width = 0  # macOS is fine as is
-        elif platform.system() == 'Linux':
+        else:  # Linux
             title_bar_height = TITLE_BAR_HEIGHT_LINUX
             audio_viz_height = AUDIO_VIZ_HEIGHT_LINUX
             extra_width = 100  # Linux needs more width
-        else:  # Windows
-            title_bar_height = TITLE_BAR_HEIGHT_WINDOWS
-            audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
-            extra_width = 100  # Windows likely needs more width too
         
         window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2) + extra_width
         # add extra height for audio visualization bar and title bar
         window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height + audio_viz_height + 20
         
         # on Linux, make window resizable to handle different DPI/scaling
-        if platform.system() == 'Linux':
-            style = wx.DEFAULT_FRAME_STYLE
-        else:
-            style = wx.DEFAULT_FRAME_STYLE & ~wx.RESIZE_BORDER
+        style = wx.DEFAULT_FRAME_STYLE if platform.system() == 'Linux' else wx.DEFAULT_FRAME_STYLE & ~wx.RESIZE_BORDER
         
         super().__init__(None, title="Audio-Controlled Pong Game", 
                         size=(window_width, window_height),
@@ -95,9 +88,10 @@ class PongFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_key)
         
-        # keyboard control state
+        # keyboard control state (for Linux/Windows where GetKeyState doesn't work)
         self.keyboard_up_pressed = False
         self.keyboard_down_pressed = False
+        self.use_key_events = platform.system() == 'Linux'  # Linux needs event-based input
         
         self.key_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.check_movement_keys, self.key_timer)
@@ -475,12 +469,21 @@ class PongFrame(wx.Frame):
             self.game.reset_game()
             return
         
-        # handle movement keys (arrows + WASD) - prevent macOS error beep
+        # handle movement keys (arrows + WASD)
         if key in [wx.WXK_UP, wx.WXK_DOWN, ord('W'), ord('w'), ord('S'), ord('s')]:
             if self.game.game_state == 'playing':
-                # movement keys are handled in check_movement_keys
-                # don't skip to prevent beep
-                return
+                # on Linux, use key events (GetKeyState doesn't work)
+                if self.use_key_events:
+                    control_mode = self.settings.get_control_mode() if self.settings else 'audio'
+                    if control_mode == 'keyboard':
+                        if key == wx.WXK_UP or key == ord('W') or key == ord('w'):
+                            self.keyboard_up_pressed = True
+                        elif key == wx.WXK_DOWN or key == ord('S') or key == ord('s'):
+                            self.keyboard_down_pressed = True
+                    return
+                else:
+                    # macOS/Windows: handled in check_movement_keys with GetKeyState
+                    return
         
         event.Skip()
     
@@ -493,16 +496,34 @@ class PongFrame(wx.Frame):
         if self.game.game_state == 'playing':
             control_mode = self.settings.get_control_mode() if self.settings else 'audio'
             if control_mode == 'keyboard':
-                # check key states (this method doesn't trigger error beeps)
-                keys = wx.GetKeyState
-                # check for up movement (arrow up or W)
-                if keys(wx.WXK_UP) or keys(ord('W')):
-                    self.game.paddle_left.move_up()
-                # check for down movement (arrow down or S)
-                elif keys(wx.WXK_DOWN) or keys(ord('S')):
-                    self.game.paddle_left.move_down()
+                if self.use_key_events:
+                    # Linux: use key press state (GetKeyState doesn't work on GTK)
+                    if self.keyboard_up_pressed:
+                        self.game.paddle_left.move_up()
+                    elif self.keyboard_down_pressed:
+                        self.game.paddle_left.move_down()
+                    else:
+                        self.game.paddle_left.stop()
+                    
+                    # reset states (will be set again by key event if still pressed)
+                    self.keyboard_up_pressed = False
+                    self.keyboard_down_pressed = False
                 else:
-                    self.game.paddle_left.stop()
+                    # macOS/Windows: use GetKeyState (polling)
+                    try:
+                        keys = wx.GetKeyState
+                        # check for up movement (arrow up or W)
+                        if keys(wx.WXK_UP) or keys(ord('W')):
+                            self.game.paddle_left.move_up()
+                        # check for down movement (arrow down or S)
+                        elif keys(wx.WXK_DOWN) or keys(ord('S')):
+                            self.game.paddle_left.move_down()
+                        else:
+                            self.game.paddle_left.stop()
+                    except Exception as e:
+                        # if GetKeyState fails, fall back to event-based
+                        logger.warning(f"GetKeyState failed, switching to event-based: {e}")
+                        self.use_key_events = True
     
     def update_audio_viz(self, event):
         """update the audio visualization widget"""
