@@ -21,6 +21,12 @@ sudo apt install build-essential python3.11-dev libgtk-3-dev portaudio19-dev lib
 ./run.sh      # Run the game
 ```
 
+**Windows:**
+```cmd
+setup.bat     # One-time setup
+run.bat       # Run the game
+```
+
 
 ## Code Structure
 

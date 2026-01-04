@@ -13,7 +13,7 @@ FRAME_WIDTH = 4
 PADDING = 20
 TITLE_BAR_HEIGHT_MACOS = 40
 TITLE_BAR_HEIGHT_LINUX = 50  # Linux needs more space for window decorations
-TITLE_BAR_HEIGHT_WINDOWS = 30
+TITLE_BAR_HEIGHT_WINDOWS = 40
 AUDIO_VIZ_HEIGHT_MACOS = 50  # height of audio visualization bar on macOS
 AUDIO_VIZ_HEIGHT_LINUX = 100  # Linux needs more height for audio viz
 KEY_TIMER_INTERVAL_MS = 50
@@ -28,15 +28,19 @@ class PongFrame(wx.Frame):
         self.game_height = GAME_HEIGHT
         self.frame_width = FRAME_WIDTH
         
-        # platform-specific dimensions (Linux needs more space for font rendering)
+        # platform-specific dimensions (Linux/Windows need more space for font rendering)
         if platform.system() == 'Darwin':
             title_bar_height = TITLE_BAR_HEIGHT_MACOS
             audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
             extra_width = 0  # macOS is fine as is
-        else:  # Linux
+        elif platform.system() == 'Linux':
             title_bar_height = TITLE_BAR_HEIGHT_LINUX
             audio_viz_height = AUDIO_VIZ_HEIGHT_LINUX
             extra_width = 100  # Linux needs more width
+        else:  # Windows
+            title_bar_height = TITLE_BAR_HEIGHT_WINDOWS
+            audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
+            extra_width = 100  # Windows needs more width too
         
         window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2) + extra_width
         # add extra height for audio visualization bar and title bar

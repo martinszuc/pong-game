@@ -14,9 +14,9 @@ import platform
 
 logger = logging.getLogger(__name__)
 
-# Linux needs more space due to different font rendering
-WIZARD_WIDTH = 750 if platform.system() == 'Linux' else 650
-WIZARD_HEIGHT = 750 if platform.system() == 'Linux' else 600
+# Linux/Windows need more space due to different font rendering
+WIZARD_WIDTH = 750 if platform.system() != 'Darwin' else 650
+WIZARD_HEIGHT = 750 if platform.system() != 'Darwin' else 600
 TEST_DURATION = 3  # seconds to test each level
 
 
