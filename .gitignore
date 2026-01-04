@@ -19,7 +19,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
+CODEBASE_REFERENCE_FINAL.md
+PRESENTATION_SLIDES.md
+PROJECT_OVERVIEW.md
 # Virtual environments
 venv/
 env/
