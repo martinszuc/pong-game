@@ -1,11 +1,13 @@
 import wx
 import logging
+import platform
 from .audio_calibration_dialog import AudioCalibrationDialog
 
 logger = logging.getLogger(__name__)
 
-DIALOG_WIDTH = 600
-DIALOG_HEIGHT = 650
+# Linux/Windows need more space due to different font rendering
+DIALOG_WIDTH = 700 if platform.system() in ['Linux', 'Windows'] else 600
+DIALOG_HEIGHT = 750 if platform.system() in ['Linux', 'Windows'] else 650
 SLIDER_WIDTH = 380
 SLIDER_HEIGHT = 60
 SLIDER_MIN = 0

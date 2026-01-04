@@ -12,7 +12,10 @@ GAME_HEIGHT = 600
 FRAME_WIDTH = 4
 PADDING = 20
 TITLE_BAR_HEIGHT_MACOS = 40
-TITLE_BAR_HEIGHT_OTHER = 30
+TITLE_BAR_HEIGHT_LINUX = 50  # Linux needs more space for window decorations
+TITLE_BAR_HEIGHT_WINDOWS = 30
+AUDIO_VIZ_HEIGHT_MACOS = 50  # height of audio visualization bar on macOS
+AUDIO_VIZ_HEIGHT_LINUX = 100  # Linux needs more height for audio viz
 KEY_TIMER_INTERVAL_MS = 50
 TOP_SCORES_COUNT = 5
 MAX_NAME_DISPLAY_LENGTH = 15
@@ -25,14 +28,33 @@ class PongFrame(wx.Frame):
         self.game_height = GAME_HEIGHT
         self.frame_width = FRAME_WIDTH
         
-        title_bar_height = TITLE_BAR_HEIGHT_MACOS if platform.system() == 'Darwin' else TITLE_BAR_HEIGHT_OTHER
-        window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2)
-        # add extra height for audio visualization bar (60px) and spacing
-        window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height + 60
+        # platform-specific dimensions (Linux/Windows need more space for font rendering)
+        if platform.system() == 'Darwin':
+            title_bar_height = TITLE_BAR_HEIGHT_MACOS
+            audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
+            extra_width = 0  # macOS is fine as is
+        elif platform.system() == 'Linux':
+            title_bar_height = TITLE_BAR_HEIGHT_LINUX
+            audio_viz_height = AUDIO_VIZ_HEIGHT_LINUX
+            extra_width = 100  # Linux needs more width
+        else:  # Windows
+            title_bar_height = TITLE_BAR_HEIGHT_WINDOWS
+            audio_viz_height = AUDIO_VIZ_HEIGHT_MACOS
+            extra_width = 100  # Windows likely needs more width too
+        
+        window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2) + extra_width
+        # add extra height for audio visualization bar and title bar
+        window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height + audio_viz_height + 20
+        
+        # on Linux, make window resizable to handle different DPI/scaling
+        if platform.system() == 'Linux':
+            style = wx.DEFAULT_FRAME_STYLE
+        else:
+            style = wx.DEFAULT_FRAME_STYLE & ~wx.RESIZE_BORDER
         
         super().__init__(None, title="Audio-Controlled Pong Game", 
                         size=(window_width, window_height),
-                        style=wx.DEFAULT_FRAME_STYLE & ~wx.RESIZE_BORDER)
+                        style=style)
         
         self.game = game
         self.renderer = renderer
@@ -254,9 +276,13 @@ class PongFrame(wx.Frame):
             viz_sizer.AddStretchSpacer()
             
             self.audio_viz_panel.SetSizer(viz_sizer)
-            self.audio_viz_panel.SetMinSize((-1, 40))
+            # platform-specific audio viz panel height
+            if platform.system() == 'Linux':
+                self.audio_viz_panel.SetMinSize((-1, 70))  # taller on Linux
+            else:
+                self.audio_viz_panel.SetMinSize((-1, 40))
             outer_sizer.Add(self.audio_viz_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-            
+
             logger.info("Audio visualization widget created")
         except Exception as e:
             logger.error(f"Error creating audio viz widget: {e}", exc_info=True)

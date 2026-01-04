@@ -10,11 +10,13 @@ This dialog helps users calibrate their microphone sensitivity by:
 import wx
 import logging
 import time
+import platform
 
 logger = logging.getLogger(__name__)
 
-WIZARD_WIDTH = 650
-WIZARD_HEIGHT = 600
+# Linux/Windows need more space due to different font rendering
+WIZARD_WIDTH = 750 if platform.system() in ['Linux', 'Windows'] else 650
+WIZARD_HEIGHT = 750 if platform.system() in ['Linux', 'Windows'] else 600
 TEST_DURATION = 3  # seconds to test each level
 
 
