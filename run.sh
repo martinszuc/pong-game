@@ -1,6 +1,6 @@
 #!/bin/bash
-# Universal run script for Audio-Controlled Pong Game
-# Supports: macOS, Linux, Windows (Git Bash)
+# Run script for Audio-Controlled Pong Game
+# Supports: macOS, Linux
 
 # check if virtual environment exists
 if [ ! -d "venv" ]; then
@@ -12,7 +12,7 @@ if [ ! -d "venv" ]; then
     fi
 fi
 
-# find activation script (different on Windows vs Unix)
+# activate virtual environment
 if [ -f "venv/bin/activate" ]; then
     # macOS/Linux
     source venv/bin/activate

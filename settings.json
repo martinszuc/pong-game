@@ -1,6 +1,6 @@
 {
-  "audio_sensitivity": 0.04924640927735406,
-  "color_theme": "classic",
-  "difficulty": "easy",
-  "control_mode": "audio"
+  "audio_sensitivity": 0.07086,
+  "color_theme": "blue",
+  "difficulty": "hard",
+  "control_mode": "keyboard"
 }
