@@ -5,21 +5,56 @@ REM Requires Python 3.11
 echo === Audio-Controlled Pong Game - Windows Setup ===
 echo.
 
-REM Check for Python 3.11
-python --version 2>nul | findstr /C:"3.11" >nul
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Python 3.11 not found!
-    echo.
-    echo Please install Python 3.11 from:
-    echo https://www.python.org/downloads/
-    echo.
-    echo Make sure to check "Add Python to PATH" during installation!
-    pause
-    exit /b 1
+REM Find Python 3.11 (try multiple commands)
+set PYTHON_CMD=
+
+REM Try python-3.11 first
+python-3.11 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set PYTHON_CMD=python-3.11
+    goto :found_python
 )
 
-echo Found Python 3.11
-python --version
+REM Try py -3.11 (Windows launcher)
+py -3.11 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set PYTHON_CMD=py -3.11
+    goto :found_python
+)
+
+REM Try python3.11
+python3.11 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set PYTHON_CMD=python3.11
+    goto :found_python
+)
+
+REM Try regular python (check if it's 3.10+)
+python --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set PYTHON_CMD=python
+    goto :found_python
+)
+
+REM Try py (Windows launcher)
+py --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set PYTHON_CMD=py
+    goto :found_python
+)
+
+echo ERROR: Python not found!
+echo.
+echo Please install Python 3.11 from:
+echo https://www.python.org/downloads/
+echo.
+echo Make sure to check "Add Python to PATH" during installation!
+pause
+exit /b 1
+
+:found_python
+echo Found Python:
+%PYTHON_CMD% --version
 echo.
 
 REM Remove old venv if it exists
@@ -29,7 +64,7 @@ if exist venv (
 )
 
 echo Creating virtual environment...
-python -m venv venv
+%PYTHON_CMD% -m venv venv
 
 echo Activating virtual environment...
 call venv\Scripts\activate.bat
