@@ -19,13 +19,6 @@ sudo apt install build-essential python3.11-dev libgtk-3-dev portaudio19-dev lib
 ./run.sh      # Run the game
 ```
 
-**Linux VM users:** Need at least 4GB free disk space for wxPython compilation
-
-## Controls
-
-- **Microphone/Noise**: Left paddle control (paddle falls down, noise raises it up)
-- **SPACE**: Pause/Resume
-- **ESC**: Return to Menu
 
 ## Code Structure
 
@@ -84,11 +77,3 @@ The code is organized into logical modules to make it easier to understand and m
 ## Features
 
 🎤 Microphone or keyboard control • 🎨 3 themes • 🎮 3 difficulties • 🎯 Auto-calibration • 📊 Audio viz • 💡 DMX lighting • 🏆 Leaderboard
-
-## Troubleshooting
-
-**Linux: "No space left on device"** - Need 4GB free for wxPython compilation. Free up space and re-run.
-
-**"No module named 'wx'"** - Install system dependencies first (see Setup above), then `./setup.sh`
-
-**Audio not working** - Run Settings → Calibration Wizard, or switch to Keyboard mode
