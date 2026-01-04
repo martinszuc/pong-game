@@ -15,6 +15,7 @@ import numpy as np  # numpy - numerical computing (used for image arrays)
 import logging
 
 from .effects import VisualEffects
+from .themes import get_theme, THEMES
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,14 @@ class Renderer:
     - visual effects (flashes, particles, etc.)
     """
     
-    def __init__(self, width, height):
+    def __init__(self, width, height, theme_name='classic'):
         """create a renderer for the given screen size"""
         self.width = width
         self.height = height
         self.trail_enabled = False  # ball trail effect (not currently used)
         self.effects = VisualEffects(width, height)  # particle effects system
+        self.theme = get_theme(theme_name)  # current color theme
+        self.theme_name = theme_name
     
     def update_effects(self, delta_time):
         """update animated effects (fade out flashes, move particles, etc.)"""
@@ -72,6 +75,15 @@ class Renderer:
         """clear the drawing canvas (not currently used)"""
         pass
     
+    def set_theme(self, theme_name):
+        """
+        change the color theme
+        updates all colors used for drawing
+        """
+        self.theme = get_theme(theme_name)
+        self.theme_name = theme_name
+        logger.info(f"Theme changed to: {theme_name}")
+    
     def render(self, game):
         """
         draw the entire game frame
@@ -87,8 +99,9 @@ class Renderer:
         returns: a numpy array (the image) that can be displayed on screen
         """
         try:
-            # create a blank black image (height x width x 3 color channels)
-            frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            # create background with theme tint
+            bg_color = self.theme['bg_tint']
+            frame = np.full((self.height, self.width, 3), bg_color, dtype=np.uint8)
             
             # create an overlay layer for drawing (allows transparency effects)
             overlay = frame.copy()
@@ -98,15 +111,15 @@ class Renderer:
                 cv2.line(overlay, 
                          (self.width // 2, y),  # start point
                          (self.width // 2, min(y + CENTER_LINE_SEGMENT, self.height)),  # end point
-                         (128, 128, 128),  # gray color
+                         self.theme['center_line'],  # theme color
                          2)  # line thickness
             
-            # draw the paddles (white rectangles)
-            self._draw_paddle(overlay, game.paddle_left, (255, 255, 255))
-            self._draw_paddle(overlay, game.paddle_right, (255, 255, 255))
+            # draw the paddles using theme colors
+            self._draw_paddle(overlay, game.paddle_left, self.theme['paddle'])
+            self._draw_paddle(overlay, game.paddle_right, self.theme['paddle'])
             
-            # draw the ball (yellow circle)
-            self._draw_ball(overlay, game.ball, (255, 255, 0))
+            # draw the ball using theme color
+            self._draw_ball(overlay, game.ball, self.theme['ball'])
             
             # blend the overlay with the background (creates transparency effect)
             frame = cv2.addWeighted(frame, 1 - OVERLAY_ALPHA, overlay, OVERLAY_ALPHA, 0)
@@ -159,7 +172,7 @@ class Renderer:
         the text is centered by calculating its width
         """
         font = cv2.FONT_HERSHEY_SIMPLEX
-        color = (0, 0, 255)  # red color (in BGR format: blue, green, red)
+        color = self.theme['score']  # use theme color
         text = str(bounce_count)
         
         # calculate text size so we can center it

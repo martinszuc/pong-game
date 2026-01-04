@@ -27,10 +27,12 @@ class PongFrame(wx.Frame):
         
         title_bar_height = TITLE_BAR_HEIGHT_MACOS if platform.system() == 'Darwin' else TITLE_BAR_HEIGHT_OTHER
         window_width = self.game_width + (self.frame_width * 2) + (PADDING * 2)
-        window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height
+        # add extra height for audio visualization bar (60px) and spacing
+        window_height = self.game_height + (self.frame_width * 2) + (PADDING * 2) + title_bar_height + 60
         
         super().__init__(None, title="Audio-Controlled Pong Game", 
-                        size=(window_width, window_height))
+                        size=(window_width, window_height),
+                        style=wx.DEFAULT_FRAME_STYLE & ~wx.RESIZE_BORDER)
         
         self.game = game
         self.renderer = renderer
@@ -71,24 +73,43 @@ class PongFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_key)
         
+        # keyboard control state
+        self.keyboard_up_pressed = False
+        self.keyboard_down_pressed = False
+        
         self.key_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.check_movement_keys, self.key_timer)
         self.key_timer.Start(KEY_TIMER_INTERVAL_MS)
         
         self.Show()
         self.SetFocus()
+        
+        # start audio viz timer after window is shown (safer, only if audio viz exists)
+        try:
+            if hasattr(self, 'audio_viz_bar') and self.audio_viz_bar:
+                self.audio_viz_timer = wx.Timer(self)
+                self.Bind(wx.EVT_TIMER, self.update_audio_viz, self.audio_viz_timer)
+                self.audio_viz_timer.Start(50)
+                logger.info("Audio visualization timer started")
+        except Exception as e:
+            logger.error(f"Error starting audio viz timer: {e}", exc_info=True)
+            self.audio_viz_timer = None
+        
+        # apply initial theme to menu after window is shown (safer)
+        wx.CallAfter(self.apply_theme_to_menu)
     
     def create_menu_panel(self, parent):
         menu_panel = wx.Panel(parent)
+        self.menu_panel_widget = menu_panel  # store reference for theme updates
         menu_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
         
         sizer = wx.BoxSizer(wx.VERTICAL)
         
-        title = wx.StaticText(menu_panel, label="PONG GAME")
+        self.menu_title = wx.StaticText(menu_panel, label="PONG GAME")
         title_font = wx.Font(48, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        title.SetFont(title_font)
-        title.SetForegroundColour(wx.Colour(255, 255, 255))
-        sizer.Add(title, 0, wx.ALIGN_CENTER | wx.TOP, 50)
+        self.menu_title.SetFont(title_font)
+        self.menu_title.SetForegroundColour(wx.Colour(255, 255, 255))
+        sizer.Add(self.menu_title, 0, wx.ALIGN_CENTER | wx.TOP, 50)
         
         start_btn = wx.Button(menu_panel, label="START GAME", size=(200, 50))
         start_btn.Bind(wx.EVT_BUTTON, self.on_start_game)
@@ -98,11 +119,11 @@ class PongFrame(wx.Frame):
         settings_btn.Bind(wx.EVT_BUTTON, self.on_settings)
         sizer.Add(settings_btn, 0, wx.ALIGN_CENTER | wx.TOP, 20)
         
-        high_scores_label = wx.StaticText(menu_panel, label="HIGH SCORES")
-        high_scores_label.SetForegroundColour(wx.Colour(255, 215, 0))
+        self.high_scores_label = wx.StaticText(menu_panel, label="HIGH SCORES")
+        self.high_scores_label.SetForegroundColour(wx.Colour(255, 215, 0))
         high_scores_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        high_scores_label.SetFont(high_scores_font)
-        sizer.Add(high_scores_label, 0, wx.ALIGN_CENTER | wx.TOP, 30)
+        self.high_scores_label.SetFont(high_scores_font)
+        sizer.Add(self.high_scores_label, 0, wx.ALIGN_CENTER | wx.TOP, 30)
         
         self.high_scores_text = wx.StaticText(menu_panel, label="")
         self.high_scores_text.SetForegroundColour(wx.Colour(200, 200, 200))
@@ -175,10 +196,13 @@ class PongFrame(wx.Frame):
     
     def create_game_panel(self, parent):
         game_panel = wx.Panel(parent)
-        game_panel.SetBackgroundColour(wx.Colour(255, 255, 255))
+        game_panel.SetBackgroundColour(wx.Colour(40, 40, 40))
         
         outer_sizer = wx.BoxSizer(wx.VERTICAL)
-        outer_sizer.AddSpacer(self.frame_width)
+        
+        # game display section
+        game_display_sizer = wx.BoxSizer(wx.VERTICAL)
+        game_display_sizer.AddSpacer(self.frame_width)
         
         inner_sizer = wx.BoxSizer(wx.HORIZONTAL)
         inner_sizer.AddSpacer(self.frame_width)
@@ -195,8 +219,53 @@ class PongFrame(wx.Frame):
         inner_sizer.Add(bitmap_panel, 0, wx.CENTER)
         inner_sizer.AddSpacer(self.frame_width)
         
-        outer_sizer.Add(inner_sizer, 1, wx.CENTER)
-        outer_sizer.AddSpacer(self.frame_width)
+        game_display_sizer.Add(inner_sizer, 0, wx.CENTER)
+        game_display_sizer.AddSpacer(self.frame_width)
+        
+        outer_sizer.Add(game_display_sizer, 0, wx.CENTER | wx.TOP, 10)
+        
+        # audio visualization widget (shows microphone level) - below game display
+        try:
+            outer_sizer.AddSpacer(5)
+            
+            self.audio_viz_panel = wx.Panel(game_panel)
+            self.audio_viz_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
+            viz_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            viz_sizer.AddStretchSpacer()
+            
+            viz_label = wx.StaticText(self.audio_viz_panel, label="Mic Level:")
+            viz_label.SetForegroundColour(wx.Colour(200, 200, 200))
+            viz_font = viz_label.GetFont()
+            viz_font.PointSize += 1
+            viz_label.SetFont(viz_font)
+            viz_sizer.Add(viz_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
+            
+            self.audio_viz_bar = wx.Gauge(self.audio_viz_panel, range=100, style=wx.GA_HORIZONTAL)
+            self.audio_viz_bar.SetMinSize((250, 20))
+            viz_sizer.Add(self.audio_viz_bar, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 8)
+            
+            self.audio_viz_text = wx.StaticText(self.audio_viz_panel, label="0.00")
+            self.audio_viz_text.SetForegroundColour(wx.Colour(200, 200, 200))
+            viz_text_font = self.audio_viz_text.GetFont()
+            viz_text_font.PointSize += 1
+            self.audio_viz_text.SetFont(viz_text_font)
+            viz_sizer.Add(self.audio_viz_text, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+            
+            viz_sizer.AddStretchSpacer()
+            
+            self.audio_viz_panel.SetSizer(viz_sizer)
+            self.audio_viz_panel.SetMinSize((-1, 40))
+            outer_sizer.Add(self.audio_viz_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+            
+            logger.info("Audio visualization widget created")
+        except Exception as e:
+            logger.error(f"Error creating audio viz widget: {e}", exc_info=True)
+            self.audio_viz_panel = None
+            self.audio_viz_bar = None
+            self.audio_viz_text = None
+        
+        # timer to update audio visualization (will start after window is shown)
+        self.audio_viz_timer = None
         
         game_panel.SetSizer(outer_sizer)
         return game_panel
@@ -206,6 +275,8 @@ class PongFrame(wx.Frame):
         self.game_panel.Hide()
         self.game_over_panel.Hide()
         self.panel.Layout()
+        # apply theme when showing menu (in case it changed during gameplay)
+        wx.CallAfter(self.apply_theme_to_menu)
     
     def show_game_panel(self):
         self.menu_panel.Hide()
@@ -295,10 +366,55 @@ class PongFrame(wx.Frame):
         self.update_high_scores_display()
         self.SetFocus()
     
+    def apply_theme_to_menu(self):
+        """apply current theme colors to the menu panel"""
+        try:
+            if not hasattr(self, 'renderer') or not self.renderer:
+                return
+            
+            if not hasattr(self, 'menu_panel_widget') or not self.menu_panel_widget:
+                return
+            
+            theme = self.renderer.theme
+            if not theme:
+                return
+            
+            # menu colors are already in RGB format (game colors are BGR for OpenCV)
+            # no conversion needed for menu colors
+            
+            # update menu background
+            bg_color = theme.get('menu_bg', (30, 30, 30))
+            if bg_color and len(bg_color) == 3:
+                self.menu_panel_widget.SetBackgroundColour(wx.Colour(bg_color[0], bg_color[1], bg_color[2]))
+            
+            # update title color
+            title_color = theme.get('menu_title', (255, 255, 255))
+            if title_color and len(title_color) == 3 and hasattr(self, 'menu_title'):
+                self.menu_title.SetForegroundColour(wx.Colour(title_color[0], title_color[1], title_color[2]))
+            
+            # update high scores label color
+            highlight_color = theme.get('menu_highlight', (255, 215, 0))
+            if highlight_color and len(highlight_color) == 3 and hasattr(self, 'high_scores_label'):
+                self.high_scores_label.SetForegroundColour(wx.Colour(highlight_color[0], highlight_color[1], highlight_color[2]))
+            
+            # update scores text color
+            text_color = theme.get('menu_text', (200, 200, 200))
+            if text_color and len(text_color) == 3 and hasattr(self, 'high_scores_text'):
+                self.high_scores_text.SetForegroundColour(wx.Colour(text_color[0], text_color[1], text_color[2]))
+            
+            # refresh the panel
+            self.menu_panel_widget.Refresh()
+            self.panel.Layout()
+        except Exception as e:
+            logger.error(f"Error applying theme to menu: {e}", exc_info=True)
+            # don't crash the game, just log the error
+    
     def on_settings(self, event):
-        dialog = SettingsDialog(self, self.audio_input, self.settings)
-        dialog.ShowModal()
+        dialog = SettingsDialog(self, self.audio_input, self.settings, self.game, self.renderer)
+        result = dialog.ShowModal()
         dialog.Destroy()
+        
+        # theme is already applied by the dialog's on_apply/on_ok methods
     
     def on_key(self, event):
         key = event.GetUnicodeKey()
@@ -319,6 +435,7 @@ class PongFrame(wx.Frame):
                 event.Skip()
             return
         
+        # handle game keys
         if key == wx.WXK_ESCAPE:
             self.game.to_menu()
             self.show_menu_panel()
@@ -332,14 +449,68 @@ class PongFrame(wx.Frame):
             self.game.reset_game()
             return
         
+        # handle movement keys (arrows + WASD) - prevent macOS error beep
+        if key in [wx.WXK_UP, wx.WXK_DOWN, ord('W'), ord('w'), ord('S'), ord('s')]:
+            if self.game.game_state == 'playing':
+                # movement keys are handled in check_movement_keys
+                # don't skip to prevent beep
+                return
+        
         event.Skip()
     
     def check_movement_keys(self, event):
+        """check movement keys (arrows + WASD) for keyboard control and game over state"""
+        # check for game over
         self.check_game_over()
+        
+        # handle keyboard controls if in keyboard mode
+        if self.game.game_state == 'playing':
+            control_mode = self.settings.get_control_mode() if self.settings else 'audio'
+            if control_mode == 'keyboard':
+                # check key states (this method doesn't trigger error beeps)
+                keys = wx.GetKeyState
+                # check for up movement (arrow up or W)
+                if keys(wx.WXK_UP) or keys(ord('W')):
+                    self.game.paddle_left.move_up()
+                # check for down movement (arrow down or S)
+                elif keys(wx.WXK_DOWN) or keys(ord('S')):
+                    self.game.paddle_left.move_down()
+                else:
+                    self.game.paddle_left.stop()
+    
+    def update_audio_viz(self, event):
+        """update the audio visualization widget"""
+        try:
+            # check if widgets exist
+            if not hasattr(self, 'audio_viz_bar') or not self.audio_viz_bar:
+                return
+            
+            if self.audio_input and self.game.game_state == 'playing':
+                # show audio viz during gameplay
+                volume = self.audio_input.get_volume()
+                self.audio_viz_bar.SetValue(int(volume * 100))
+                if self.audio_viz_text:
+                    self.audio_viz_text.SetLabel(f"{volume:.2f}")
+                
+                # change color based on threshold
+                if volume > self.audio_input.noise_threshold:
+                    self.audio_viz_bar.SetForegroundColour(wx.Colour(0, 255, 0))  # green when active
+                else:
+                    self.audio_viz_bar.SetForegroundColour(wx.Colour(100, 100, 100))  # gray when inactive
+            else:
+                self.audio_viz_bar.SetValue(0)
+                if self.audio_viz_text:
+                    self.audio_viz_text.SetLabel("--")
+        except Exception as e:
+            logger.error(f"Error updating audio viz: {e}")
     
     def on_close(self, event):
+        # stop timers
         if hasattr(self, 'key_timer'):
             self.key_timer.Stop()
+        if hasattr(self, 'audio_viz_timer') and self.audio_viz_timer.IsRunning():
+            self.audio_viz_timer.Stop()
+        
         if self.on_close_callback:
             self.on_close_callback()
         self.Destroy()

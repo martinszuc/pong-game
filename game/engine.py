@@ -33,6 +33,34 @@ PADDLE_HIT_VELOCITY_BOOST = 50
 # AI difficulty (0.0 = terrible, 1.0 = perfect)
 AI_DIFFICULTY = 0.6
 
+# difficulty presets - adjust multiple parameters at once
+DIFFICULTY_PRESETS = {
+    'easy': {
+        'name': 'Easy',
+        'ai_difficulty': 0.4,
+        'ball_speed': 200,
+        'paddle_speed': 350,
+        'speed_increase': 1.03,  # slower speed increase
+        'max_speed_mult': 2.0
+    },
+    'medium': {
+        'name': 'Medium',
+        'ai_difficulty': 0.6,
+        'ball_speed': 250,
+        'paddle_speed': 300,
+        'speed_increase': 1.05,
+        'max_speed_mult': 2.5
+    },
+    'hard': {
+        'name': 'Hard',
+        'ai_difficulty': 0.85,
+        'ball_speed': 320,
+        'paddle_speed': 270,
+        'speed_increase': 1.08,  # faster speed increase
+        'max_speed_mult': 3.0
+    }
+}
+
 
 class PongGame:
     """
@@ -45,11 +73,15 @@ class PongGame:
     - game states (menu, playing, paused, game over)
     """
     
-    def __init__(self, field_width, field_height):
+    def __init__(self, field_width, field_height, difficulty='medium'):
         """initialize a new game with the given field dimensions"""
         # game field size
         self.field_width = field_width
         self.field_height = field_height
+        
+        # difficulty settings
+        self.difficulty = difficulty
+        self.apply_difficulty_preset(difficulty)
         
         # scores for both players
         self.score_left = 0
@@ -76,7 +108,7 @@ class PongGame:
         self.reset_ball()
         self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
         
-        logger.info(f"Game initialized: {field_width}x{field_height}")
+        logger.info(f"Game initialized: {field_width}x{field_height}, difficulty: {difficulty}")
     
     def _init_paddles(self):
         """create the left and right paddles"""
@@ -89,7 +121,7 @@ class PongGame:
             paddle_y,  # y position (centered)
             PADDLE_WIDTH,
             PADDLE_HEIGHT,
-            PADDLE_SPEED
+            self.paddle_speed  # use difficulty-adjusted speed
         )
         
         # right paddle (controlled by AI)
@@ -98,13 +130,33 @@ class PongGame:
             paddle_y,  # y position (centered)
             PADDLE_WIDTH,
             PADDLE_HEIGHT,
-            PADDLE_SPEED
+            self.paddle_speed  # use difficulty-adjusted speed
         )
     
     def _init_ai(self):
         """create the AI that controls the right paddle"""
         from .ai import SimpleAI
-        self.ai = SimpleAI(self.paddle_right, difficulty=AI_DIFFICULTY)
+        self.ai = SimpleAI(self.paddle_right, difficulty=self.ai_difficulty)
+    
+    def apply_difficulty_preset(self, difficulty):
+        """
+        apply a difficulty preset
+        
+        this adjusts multiple game parameters at once:
+        - AI skill level
+        - ball speed
+        - paddle speed
+        - how fast the ball speeds up
+        """
+        preset = DIFFICULTY_PRESETS.get(difficulty, DIFFICULTY_PRESETS['medium'])
+        
+        self.ai_difficulty = preset['ai_difficulty']
+        self.ball_speed = preset['ball_speed']
+        self.paddle_speed = preset['paddle_speed']
+        self.speed_increase_factor = preset['speed_increase']
+        self.max_speed_multiplier = preset['max_speed_mult']
+        
+        logger.info(f"Applied difficulty preset: {preset['name']}")
     
     def reset_ball(self):
         """
@@ -122,8 +174,10 @@ class PongGame:
             self.field_width // 2,  # center x
             self.field_height // 2,  # center y
             radius=BALL_RADIUS,
-            velocity_x=BALL_SPEED * direction,  # horizontal speed (left or right)
-            velocity_y=BALL_SPEED * angle  # vertical speed (angled)
+            velocity_x=self.ball_speed * direction,  # horizontal speed (left or right)
+            velocity_y=self.ball_speed * angle,  # vertical speed (angled)
+            speed_increase_factor=self.speed_increase_factor,
+            max_speed_multiplier=self.max_speed_multiplier
         )
         self.last_ball_position = [self.ball.position[0], self.ball.position[1]]
     
@@ -377,3 +431,18 @@ class PongGame:
     def set_lighting_callbacks(self, **callbacks):
         """connect functions that control DMX lighting"""
         self._lighting_callbacks.update(callbacks)
+    
+    def set_difficulty(self, difficulty):
+        """
+        change the difficulty preset
+        
+        this will take effect the next time the game is reset
+        """
+        self.difficulty = difficulty
+        self.apply_difficulty_preset(difficulty)
+        
+        # update AI difficulty immediately
+        if self.ai:
+            self.ai.difficulty = self.ai_difficulty
+        
+        logger.info(f"Difficulty changed to: {difficulty}")

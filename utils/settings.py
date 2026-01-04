@@ -17,6 +17,15 @@ SETTINGS_FILE = "settings.json"
 # default microphone sensitivity (how loud you need to be)
 DEFAULT_AUDIO_SENSITIVITY = 0.02
 
+# default color theme
+DEFAULT_COLOR_THEME = 'classic'
+
+# default difficulty preset
+DEFAULT_DIFFICULTY = 'medium'
+
+# default control mode (audio or keyboard)
+DEFAULT_CONTROL_MODE = 'audio'
+
 
 class SettingsManager:
     """
@@ -35,7 +44,10 @@ class SettingsManager:
         
         # default settings (used if no save file exists)
         self.settings = {
-            'audio_sensitivity': DEFAULT_AUDIO_SENSITIVITY
+            'audio_sensitivity': DEFAULT_AUDIO_SENSITIVITY,
+            'color_theme': DEFAULT_COLOR_THEME,
+            'difficulty': DEFAULT_DIFFICULTY,
+            'control_mode': DEFAULT_CONTROL_MODE
         }
         
         # try to load saved settings
@@ -89,4 +101,28 @@ class SettingsManager:
     def set_audio_sensitivity(self, value):
         """set the microphone sensitivity and save it"""
         self.set('audio_sensitivity', value)
+    
+    def get_color_theme(self):
+        """get the current color theme"""
+        return self.settings.get('color_theme', DEFAULT_COLOR_THEME)
+    
+    def set_color_theme(self, value):
+        """set the color theme and save it"""
+        self.set('color_theme', value)
+    
+    def get_difficulty(self):
+        """get the current difficulty preset"""
+        return self.settings.get('difficulty', DEFAULT_DIFFICULTY)
+    
+    def set_difficulty(self, value):
+        """set the difficulty preset and save it"""
+        self.set('difficulty', value)
+    
+    def get_control_mode(self):
+        """get the current control mode (audio or keyboard)"""
+        return self.settings.get('control_mode', DEFAULT_CONTROL_MODE)
+    
+    def set_control_mode(self, value):
+        """set the control mode and save it"""
+        self.set('control_mode', value)
 

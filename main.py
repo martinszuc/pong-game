@@ -70,7 +70,22 @@ class PongApplication:
     def _init_wx_app(self):
         """create the wxPython application (the window system)"""
         try:
-            self.app = wx.App()
+            # on macOS, suppress redirect to avoid autorelease pool warnings
+            self.app = wx.App(redirect=False) if IS_MACOS else wx.App()
+            
+            # disable macOS window restoration (prevents crash loops on reopen)
+            if IS_MACOS:
+                self.app.SetExitOnFrameDelete(True)
+                # tell macOS not to restore windows after crash
+                try:
+                    import objc
+                    from Foundation import NSUserDefaults
+                    defaults = NSUserDefaults.standardUserDefaults()
+                    defaults.setBool_forKey_(False, "NSQuitAlwaysKeepsWindows")
+                except:
+                    # if Foundation not available, that's ok - continue anyway
+                    pass
+            
             logger.info("wx.App created successfully")
         except Exception as e:
             logger.error(f"Failed to create wx.App: {e}", exc_info=True)
@@ -132,11 +147,15 @@ class PongApplication:
         the game engine handles all the physics (ball movement, collisions)
         the renderer draws everything on screen (ball, paddles, effects)
         """
+        # get saved settings
+        difficulty = self.settings.get_difficulty()
+        theme = self.settings.get_color_theme()
+        
         # create the game engine (the "brain" that runs the game logic)
-        self.game = PongGame(self.field_width, self.field_height)
+        self.game = PongGame(self.field_width, self.field_height, difficulty=difficulty)
         
         # create the renderer (the "artist" that draws everything)
-        self.renderer = Renderer(self.field_width, self.field_height)
+        self.renderer = Renderer(self.field_width, self.field_height, theme_name=theme)
         
         # connect the game engine to the renderer so it knows when to draw trails
         self.game.set_trail_callbacks(
@@ -166,6 +185,7 @@ class PongApplication:
         menu buttons, and all the user interface elements
         """
         try:
+            logger.info("Creating main window...")
             self.frame = PongFrame(
                 self.game, 
                 self.renderer, 
@@ -177,6 +197,8 @@ class PongApplication:
             logger.info("Main window created successfully")
         except Exception as e:
             logger.error(f"Failed to create main window: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
             raise
     
     def _init_timer(self):
@@ -242,13 +264,21 @@ class PongApplication:
             delta_time = min(current_time - self.last_time, MAX_DELTA_TIME)
             self.last_time = current_time
             
-            # if the game is playing, listen to the microphone and move the paddle
-            if self.game.game_state == 'playing' and self.audio_input:
-                paddle_dir = self.audio_input.get_paddle_direction()
-                if paddle_dir == -1:  # loud sound detected
-                    self.game.paddle_left.move_up()
-                elif paddle_dir == 1:  # quiet/silence
-                    self.game.paddle_left.move_down()
+            # if the game is playing, control the paddle
+            if self.game.game_state == 'playing':
+                # check control mode (audio or keyboard)
+                control_mode = self.settings.get_control_mode()
+                
+                if control_mode == 'keyboard':
+                    # keyboard control is handled in the frame's check_movement_keys method
+                    pass
+                elif self.audio_input:
+                    # audio control
+                    paddle_dir = self.audio_input.get_paddle_direction()
+                    if paddle_dir == -1:  # loud sound detected
+                        self.game.paddle_left.move_up()
+                    elif paddle_dir == 1:  # quiet/silence
+                        self.game.paddle_left.move_down()
             elif self.game.game_state == 'paused':
                 self.game.paddle_left.stop()  # don't move paddle when paused
             
@@ -280,16 +310,26 @@ class PongApplication:
         which keeps the window open and responding to user actions
         """
         try:
+            logger.info("Rendering initial frame...")
             # render and display the initial frame (before the game starts)
             frame = self.renderer.render(self.game)
             if frame is not None:
                 self.frame.update_display(frame)
                 self.frame.Refresh()
+            logger.info("Initial frame rendered successfully")
         except Exception as e:
             logger.error(f"Error rendering initial frame: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
         
+        logger.info("Starting main event loop...")
         # start the main event loop (this keeps the window open and running)
-        self.app.MainLoop()
+        try:
+            self.app.MainLoop()
+        except Exception as e:
+            logger.error(f"Error in main loop: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
 
 
 def main():
