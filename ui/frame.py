@@ -67,6 +67,11 @@ class PongFrame(wx.Frame):
         
         panel = wx.Panel(self)
         panel.SetBackgroundColour(wx.Colour(40, 40, 40))
+        
+        # Windows: enable double buffering to reduce flickering
+        if platform.system() == 'Windows':
+            panel.SetDoubleBuffered(True)
+        
         self.panel = panel
         
         main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -123,6 +128,10 @@ class PongFrame(wx.Frame):
         self.menu_panel_widget = menu_panel  # store reference for theme updates
         menu_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
         
+        # Windows: enable double buffering
+        if platform.system() == 'Windows':
+            menu_panel.SetDoubleBuffered(True)
+        
         sizer = wx.BoxSizer(wx.VERTICAL)
         
         self.menu_title = wx.StaticText(menu_panel, label="PONG GAME")
@@ -174,6 +183,11 @@ class PongFrame(wx.Frame):
     def create_game_over_panel(self, parent):
         overlay_panel = wx.Panel(parent)
         overlay_panel.SetBackgroundColour(wx.Colour(20, 20, 20))
+        
+        # Windows: enable double buffering
+        if platform.system() == 'Windows':
+            overlay_panel.SetDoubleBuffered(True)
+        
         overlay_panel.Hide()
         
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -218,6 +232,10 @@ class PongFrame(wx.Frame):
         game_panel = wx.Panel(parent)
         game_panel.SetBackgroundColour(wx.Colour(40, 40, 40))
         
+        # Windows: enable double buffering
+        if platform.system() == 'Windows':
+            game_panel.SetDoubleBuffered(True)
+        
         outer_sizer = wx.BoxSizer(wx.VERTICAL)
         
         # game display section
@@ -229,6 +247,11 @@ class PongFrame(wx.Frame):
         
         bitmap_panel = wx.Panel(game_panel)
         bitmap_panel.SetBackgroundColour(wx.Colour(0, 0, 0))
+        
+        # Windows: enable double buffering
+        if platform.system() == 'Windows':
+            bitmap_panel.SetDoubleBuffered(True)
+        
         bitmap_sizer = wx.BoxSizer(wx.VERTICAL)
         
         self.display_bitmap = wx.StaticBitmap(bitmap_panel, size=(self.game_width, self.game_height))
@@ -248,10 +271,15 @@ class PongFrame(wx.Frame):
         try:
             outer_sizer.AddSpacer(5)
             
-            self.audio_viz_panel = wx.Panel(game_panel)
-            self.audio_viz_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
-            viz_sizer = wx.BoxSizer(wx.HORIZONTAL)
-            viz_sizer.AddStretchSpacer()
+        self.audio_viz_panel = wx.Panel(game_panel)
+        self.audio_viz_panel.SetBackgroundColour(wx.Colour(30, 30, 30))
+        
+        # Windows: enable double buffering
+        if platform.system() == 'Windows':
+            self.audio_viz_panel.SetDoubleBuffered(True)
+        
+        viz_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        viz_sizer.AddStretchSpacer()
             
             viz_label = wx.StaticText(self.audio_viz_panel, label="Mic Level:")
             viz_label.SetForegroundColour(wx.Colour(200, 200, 200))
@@ -298,7 +326,16 @@ class PongFrame(wx.Frame):
         self.menu_panel.Show()
         self.game_panel.Hide()
         self.game_over_panel.Hide()
+        
+        # Windows: freeze/thaw to prevent flickering during layout
+        if platform.system() == 'Windows':
+            self.panel.Freeze()
+        
         self.panel.Layout()
+        
+        if platform.system() == 'Windows':
+            self.panel.Thaw()
+        
         # apply theme when showing menu (in case it changed during gameplay)
         wx.CallAfter(self.apply_theme_to_menu)
     
@@ -406,6 +443,10 @@ class PongFrame(wx.Frame):
             # menu colors are already in RGB format (game colors are BGR for OpenCV)
             # no conversion needed for menu colors
             
+            # Windows: freeze during updates
+            if platform.system() == 'Windows':
+                self.menu_panel_widget.Freeze()
+            
             # update menu background
             bg_color = theme.get('menu_bg', (30, 30, 30))
             if bg_color and len(bg_color) == 3:
@@ -426,8 +467,13 @@ class PongFrame(wx.Frame):
             if text_color and len(text_color) == 3 and hasattr(self, 'high_scores_text'):
                 self.high_scores_text.SetForegroundColour(wx.Colour(text_color[0], text_color[1], text_color[2]))
             
-            # refresh the panel
-            self.menu_panel_widget.Refresh()
+            # Windows: thaw and update
+            if platform.system() == 'Windows':
+                self.menu_panel_widget.Thaw()
+                self.menu_panel_widget.Update()
+            else:
+                self.menu_panel_widget.Refresh()
+            
             self.panel.Layout()
         except Exception as e:
             logger.error(f"Error applying theme to menu: {e}", exc_info=True)

@@ -37,7 +37,8 @@ FIELD_WIDTH = 800
 FIELD_HEIGHT = 600
 
 # how often to update the game (16ms = approximately 60 frames per second)
-TIMER_INTERVAL_MS = 16
+# Windows: use 20ms to reduce flickering (50 FPS instead of 60)
+TIMER_INTERVAL_MS = 20 if platform.system() == 'Windows' else 16
 
 # maximum time jump between updates (prevents weird behavior if computer lags)
 MAX_DELTA_TIME = 0.1
