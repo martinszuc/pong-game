@@ -1,0 +1,141 @@
+name: Build and Release
+
+# Triggers when you push a version tag like: git tag v1.0.0 && git push --tags
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # ── macOS build ──────────────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: brew install portaudio libsndfile flac
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: python build_release.py
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: PongGame-*.zip
+
+  # ── Windows build ─────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: python build_release.py
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: PongGame-*.zip
+
+  # ── Linux build ───────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential python3.11-dev \
+            libgtk-3-dev portaudio19-dev libsndfile1-dev \
+            libgl1 libglib2.0-0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: python build_release.py
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: PongGame-*.tar.gz
+
+  # ── Create GitHub Release with all builds ─────────────────────────────────────
+  release:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: release-files/
+
+      - name: Also create source archive
+        run: python create_archive.py && mv *.zip release-files/ || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          generate_release_notes: true
+          body: |
+            ## Audio-Controlled Pong Game
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS | `PongGame-*-macOS-*.zip` → extract and double-click PongGame.app |
+            | Windows | `PongGame-*-Windows-*.zip` → extract and run PongGame.exe |
+            | Linux | `PongGame-*-Linux-*.tar.gz` → extract and run `./PongGame/PongGame` |
+            | Source | `pong-game_*.zip` → requires Python 3.11 + `./setup.sh` |
+
+            ### Requirements
+            - **macOS/Windows/Linux**: Just download and run — no Python needed!
+            - **Source**: Python 3.11, see README for setup instructions.
