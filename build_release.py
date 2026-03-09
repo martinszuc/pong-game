@@ -42,9 +42,9 @@ def run(cmd, **kwargs):
 def check_pyinstaller():
     try:
         import PyInstaller
-        print(f"✓ PyInstaller {PyInstaller.__version__} found")
+        print(f"[OK] PyInstaller {PyInstaller.__version__} found")
     except ImportError:
-        print("✗ PyInstaller not found. Installing...")
+        print("[!!] PyInstaller not found. Installing...")
         run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'])
 
 
@@ -61,7 +61,7 @@ def build():
     for folder in ['build', 'dist']:
         if Path(folder).exists():
             shutil.rmtree(folder)
-            print(f"✓ Cleaned {folder}/")
+            print(f"[OK] Cleaned {folder}/")
 
     # run PyInstaller
     run([
@@ -83,7 +83,7 @@ def build():
         with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for file in app_bundle.rglob('*'):
                 zf.write(file, file.relative_to(Path('dist')))
-        print(f"✓ Created: {archive_name}")
+        print(f"[OK] Created: {archive_name}")
         print(f"  Size: {archive_path.stat().st_size / 1024 / 1024:.1f} MB")
 
     elif system == 'Windows':
@@ -94,7 +94,7 @@ def build():
         with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for file in dist_path.rglob('*'):
                 zf.write(file, file.relative_to(Path('dist')))
-        print(f"✓ Created: {archive_name}")
+        print(f"[OK] Created: {archive_name}")
         print(f"  Size: {archive_path.stat().st_size / 1024 / 1024:.1f} MB")
 
     else:
@@ -105,7 +105,7 @@ def build():
         print(f"\n→ Creating {archive_name}...")
         with tarfile.open(archive_path, 'w:gz') as tf:
             tf.add(dist_path, arcname='PongGame')
-        print(f"✓ Created: {archive_name}")
+        print(f"[OK] Created: {archive_name}")
         print(f"  Size: {archive_path.stat().st_size / 1024 / 1024:.1f} MB")
 
     print(f"\n{'='*50}")

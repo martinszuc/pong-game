@@ -44,6 +44,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set UTF-8 for console
+        run: chcp 65001
+        shell: cmd
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:

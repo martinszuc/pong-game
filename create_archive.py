@@ -89,7 +89,7 @@ def create_project_archive():
     size_mb = archive_path.stat().st_size / (1024 * 1024)
     
     print()
-    print(f"✓ Archive created successfully!")
+    print(f"[OK] Archive created successfully!")
     print(f"  Location: {archive_path}")
     print(f"  Files: {file_count}")
     print(f"  Size: {size_mb:.2f} MB")
