@@ -1,7 +1,5 @@
 # Audio-Controlled Pong Game - Project Overview
 
-**Course**: Multimedia 1 (B0B39MM1), CTU FEL  
-**Team**: Tereza Neveselá, Marco Balducci  
 **Project**: Audio-Visual Interactive Game with Professional Lighting Integration
 
 ---

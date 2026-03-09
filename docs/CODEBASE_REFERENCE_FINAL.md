@@ -982,7 +982,6 @@ All settings saved to `settings.json`:
 
 **Document Version**: 2.0
 **Last Updated**: January 4, 2026
-**For**: Tereza & Marco's Team
 
 **Recent Updates**:
 - Added color themes system (3 themes)

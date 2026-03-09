@@ -1,7 +1,5 @@
 # Audio-Controlled Pong Game - Presentation Guide
 
-**Course**: Multimedia 1 (B0B39MM1), CTU FEL  
-**Presenters**: Tereza Neveselá, Marco Balducci  
 **Duration**: 10-12 minutes  
 **Format**: 6 slides + video demo
 
@@ -21,10 +19,6 @@
 
 [Large game screenshot/logo]
 
-Tereza Neveselá  
-Marco Balducci
-
-Multimedia 1 • CTU FEL • 2026
 
 **Visual**: Clean title slide with game screenshot or stylized logo
 
