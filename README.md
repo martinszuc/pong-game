@@ -4,6 +4,26 @@ A Pong game controlled by microphone input. Paddle falls by default, noise raise
 
 **Platforms**: macOS, Linux
 
+<p align="center">
+  <strong>Gameplay</strong> · <strong>Menu</strong> · <strong>Settings</strong>
+</p>
+<p align="center">
+  <img src="docs/screenshots/gameplay.png" width="500" alt="Gameplay" title="Gameplay" />
+  <img src="docs/screenshots/menu.png" width="500" alt="Menu" title="Menu" />
+  <img src="docs/screenshots/settings.png" width="500" alt="Settings" title="Settings" />
+</p>
+
+<p align="center">
+  <strong>Particle effects</strong>
+</p>
+<p align="center">
+  <img src="docs/screenshots/particles1.png" width="180" alt="Particles 1" title="Particles 1" />
+  <img src="docs/screenshots/particles2.png" width="180" alt="Particles 2" title="Particles 2" />
+  <img src="docs/screenshots/particles3.png" width="180" alt="Particles 3" title="Particles 3" />
+  <img src="docs/screenshots/particles4.png" width="180" alt="Particles 4" title="Particles 4" />
+  <img src="docs/screenshots/particles5.png" width="180" alt="Particles 5" title="Particles 5" />
+</p>
+
 ## Setup
 
 **Linux - Install system dependencies first:**
